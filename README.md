@@ -37,7 +37,4 @@ Para ejecutar este proyecto en tu entorno local (por ejemplo, usando XAMPP, Lara
    - Revisa el archivo `conexion.php` para ajustar las credenciales de tu servidor (`localhost`, `usuario`, `contraseña`, `nombre_bd`).
 4. **Iniciar el servidor:** Abre tu navegador web e ingresa a `http://localhost/NexoSync`.
 
-## 👤 Autor
-
-- **Jonathan Barboza** - [JonathanBarboza23](https://github.com/JonathanBarboza23)
 # NexoSync
