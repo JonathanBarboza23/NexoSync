@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración | ElectroHogar</title>
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+
+<body class="admin-body">
+    <div class="sidebar">
+        <h2>⚙️ Admin ElectroHogar</h2>
+        <button class="nav-btn activo" onclick="cambiarPestana('modulo-inventario', this)">📦 Gestión de Inventario</button>
+        <button class="nav-btn" onclick="cambiarPestana('modulo-ordenes', this)">📊 Órdenes y Ventas</button>
+        <button class="btn btn-logout" onclick="cerrarSesionAdmin()">Cerrar Sesión</button>
+    </div>
+
+    <div class="main-content">
+        
+        <div id="modulo-inventario" class="modulo activo">
+            <div class="header-modulo">
+                <h3>Control de Stock y Productos</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="buscador-admin" placeholder="🔍 Buscar por nombre..." oninput="filtrarInventario()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 250px;">
+                    
+                    <select id="filtro-categoria-admin" onchange="filtrarInventario()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="todos">Todas las categorías</option>
+                        <option value="cocina">Cocina</option>
+                        <option value="lavado">Lavado</option>
+                        <option value="tecnologia">Tecnología</option>
+                    </select>
+                    
+                    <button class="btn btn-add" onclick="abrirModal()">+ Nuevo Producto</button>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr id="fila-encabezado-stock">
+                        <th>ID</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-stock">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="modulo-ordenes" class="modulo">
+            <div class="header-modulo">
+                <h3>Historial de Ventas</h3>
+                <select id="filtro-tiempo" onchange="cargarOrdenesAdmin()">
+                    <option value="hoy">Hoy</option>
+                    <option value="semana">Esta Semana</option>
+                    <option value="mes">Este Mes</option>
+                    <option value="historico" selected>Histórico</option>
+                </select>
+            </div>
+            <table class="tabla-admin">
+                <thead>
+                    <tr>
+                        <th>N° Orden</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
+                        <th>Envío / Retiro</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-ordenes">
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+        <div id="modal-producto" class="modal-admin">
+        <div class="modal-content-admin" style="max-height: 90vh; overflow-y: auto; width: 450px;">
+            <h3>Agregar Nuevo Producto</h3>
+            <div class="form-group"><label>Nombre del Producto</label><input type="text" id="add-nombre" placeholder="Ej: Heladera No Frost 400L"></div>
+            <div class="form-group"><label>Precio Actual ($)</label><input type="number" min="1" step="any" id="add-precio" placeholder="Ej: 850000"></div>
+            <div class="form-group"><label>Precio Anterior / Lista ($) <small>(Opcional, para Ofertas)</small></label><input type="number" min="0" step="any" id="add-precio-anterior" placeholder="Ej: 990000"></div>
+            <div class="form-group"><label>Categoría</label>
+                <select id="add-categoria">
+                    <option value="cocina">Cocina</option>
+                    <option value="lavado">Lavado</option>
+                    <option value="tecnologia">Tecnología</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Ruta de Imagen <small>(Opcional)</small></label><input type="text" id="add-imagen" placeholder="img/productos/placeholder.jpg"></div>
+            <div class="form-group"><label>Descripción</label><input type="text" id="add-descripcion" placeholder="Garantía oficial 12 meses..."></div>
+            <div id="add-stocks"></div>
+            <button class="btn btn-add" style="width: 100%" onclick="guardarNuevoProducto()">Guardar Producto</button>
+            <button class="btn btn-logout" style="width: 100%; margin-top: 10px;" onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+    <div id="modal-detalles-orden" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+    <div style="background:#fff; padding:25px; border-radius:8px; width:90%; max-width:500px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+        <h3 style="margin-top:0;">Detalle - Orden #<span id="modal-orden-id"></span></h3>
+        <ul id="lista-detalles-orden" style="list-style:none; padding:0; margin:15px 0; max-height:300px; overflow-y:auto;">
+        </ul>
+        <div style="text-align:right;">
+            <button onclick="cerrarModalDetalles()" class="btn-secundario" style="padding:8px 15px; cursor:pointer;">Cerrar</button>
+        </div>
+    </div>
+</div>
+<script src="admin.js?v=4"></script>
+</body>
+</html>

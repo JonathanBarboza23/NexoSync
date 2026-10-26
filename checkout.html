@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroHogar - Pasarela de Pago</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+    <header>
+        <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
+            <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
+            <h1>ElectroHogar</h1>
+        </div>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="cocina.html">Cocina</a></li>
+                <li><a href="lavado.html">Lavado</a></li>
+                <li><a href="tecnologia.html">Tecnología</a></li>
+                <li><a href="ofertas.html">Ofertas</a></li>
+                <li><a href="sucursales.html">Sucursales</a></li>
+            </ul>
+        </nav>
+
+        <div class="herramientas-usuario">
+            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
+            <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="ofertas-header">
+            <h2>🔒 FINALIZAR COMPRA Y PAGO</h2>
+            <p>Completa los datos de envío y selecciona tu medio de pago.</p>
+        </div>
+
+        <section class="contenedor-checkout" id="seccion-checkout">
+            <form class="formulario-pago" onsubmit="procesarPagoFicticio(event)">
+                <h3>1. Modalidad de Entrega</h3>
+                <div class="selector-metodo">
+                    <label class="opcion-metodo">
+                        <input type="radio" name="tipo-entrega" value="retiro" checked onchange="alternarTipoEntrega()">
+                        🏪 Retiro en Sucursal (Gratis)
+                    </label>
+                    <label class="opcion-metodo">
+                        <input type="radio" name="tipo-entrega" value="envio" onchange="alternarTipoEntrega()">
+                        🚚 Envío a Domicilio
+                    </label>
+                </div>
+
+                <div class="aviso-datos-bloqueados">
+                    🔒 <strong>Datos del titular verificados:</strong> Se completan automáticamente con tu cuenta registrada y están bloqueados para evitar modificaciones a nombre de otra persona.
+                </div>
+
+                <div class="fila-inputs">
+                    <div class="form-group">
+                        <label>Nombre y Apellido (Titular registrado 🔒):</label>
+                        <input type="text" id="pago-nombre" class="input-bloqueado" placeholder="Ej: Juan Pérez" readonly required>
+                        <label style="margin-top:12px;">Correo Electrónico (Titular registrado 🔒):</label>
+                        <input type="email" id="pago-email" class="input-bloqueado" placeholder="Ej: correo@ejemplo.com" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label>DNI (Titular registrado 🔒):</label>
+                        <input type="text" id="pago-dni" class="input-bloqueado" placeholder="Ej: 35123456" readonly required>
+                    </div>
+                </div>
+
+                <div id="bloque-retiro-sucursal">
+                    <div class="form-group">
+                        <label>Selecciona la sucursal de retiro:</label>
+                        <select id="sucursal-elegida" required>
+                            <option value="1">📍 Sucursal Central - Av. Corrientes 1234 (CABA)</option>
+                            <option value="2">📍 Sucursal Zona Norte - Av. Pres. Perón 1500, San Miguel</option>
+                            <option value="3">📍 Sucursal Zona Sur - Av. Cabildo 2040, Quilmes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="bloque-envio-domicilio" style="display: none;">
+                    <div class="fila-inputs">
+                        <div class="form-group">
+                            <label>Dirección de entrega:</label>
+                            <input type="text" id="pago-direccion" placeholder="Calle y Altura">
+                        </div>
+                        <div class="form-group">
+                            <label>Localidad / Provincia:</label>
+                            <input type="text" id="pago-localidad" placeholder="Ej: San Miguel, Buenos Aires">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="separador-checkout">
+
+                <h3>2. Método de Pago</h3>
+                <div class="selector-metodo">
+                    <label class="opcion-metodo">
+                        <input type="radio" name="metodo-pago" value="tarjeta" checked onchange="alternarMetodoPago()">
+                        💳 Tarjeta de Crédito / Débito
+                    </label>
+                    <label class="opcion-metodo">
+                        <input type="radio" name="metodo-pago" value="transferencia" onchange="alternarMetodoPago()">
+                        🏦 Transferencia / Mercado Pago
+                    </label>
+                </div>
+
+                <div id="bloque-tarjeta">
+                    <div class="form-group">
+                        <label>Número de Tarjeta (16 dígitos):</label>
+                        <input type="text" id="num-tarjeta" maxlength="19" placeholder="4509 1234 5678 9010" oninput="formatearTarjeta(this)" required>
+                    </div>
+
+                    <div class="fila-inputs">
+                        <div class="form-group">
+                            <label>Titular (como figura en la tarjeta):</label>
+                            <input type="text" id="titular-tarjeta" placeholder="NOMBRE APELLIDO" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Cuotas:</label>
+                            <select id="cuotas-pago" onchange="actualizarResumenCheckout()">
+                                <option value="1">1 pago sin interés</option>
+                                <option value="3">3 cuotas sin interés</option>
+                                <option value="6">6 cuotas sin interés</option>
+                                <option value="12">12 cuotas fijas (+15%)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="fila-inputs">
+                        <div class="form-group">
+                            <label>Vencimiento (MM/AA):</label>
+                            <input type="text" id="venc-tarjeta" maxlength="5" placeholder="08/29" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Código de Seguridad (CVV):</label>
+                            <input type="password" id="cvv-tarjeta" maxlength="4" placeholder="123" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bloque-transferencia" style="display: none;">
+                    <div class="caja-datos-bancarios">
+                        <p><strong>Banco / Billetera:</strong> ElectroHogar S.A.</p>
+                        <p><strong>Alias:</strong> ELECTRO.HOGAR.TIENDA</p>
+                        <p><strong>CBU:</strong> 0000003100012345678901</p>
+                        <p style="font-size: 13px; color: #555; margin-top: 8px;">* Al confirmar, se generará tu orden y código QR de retiro.</p>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-submit-pago" class="btn-comprar-grande">Confirmar y Pagar</button>
+            </form>
+
+            <aside class="resumen-checkout">
+                <h3>Resumen de tu Pedido</h3>
+                <div id="lista-miniatura-checkout"></div>
+                <hr class="separador-checkout">
+                <div class="linea-resumen">
+                    <span>Subtotal productos:</span>
+                    <span id="checkout-subtotal">$0</span>
+                </div>
+                <div class="linea-resumen">
+                    <span>Costo de envío:</span>
+                    <span style="color: #28a745; font-weight: bold;">GRATIS</span>
+                </div>
+                <div class="linea-resumen" id="linea-detalle-cuotas" style="font-size: 14px; color: #555;">
+                    <span>Plan de pago:</span>
+                    <span id="checkout-texto-cuotas">1 pago</span>
+                </div>
+                <hr class="separador-checkout">
+                <div class="linea-resumen total-checkout">
+                    <span>TOTAL A PAGAR:</span>
+                    <span id="checkout-total">$0</span>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <footer>
+        <p>Todos los derechos reservados - Copyright 2026</p>
+    </footer>
+    <script src="script.js?v=4"></script>
+</body>
+</html>

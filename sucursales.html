@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroHogar - Nuestras Sucursales</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+    <header>
+        <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
+            <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
+            <h1>ElectroHogar</h1>
+        </div>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="cocina.html">Cocina</a></li>
+                <li><a href="lavado.html">Lavado</a></li>
+                <li><a href="tecnologia.html">Tecnología</a></li>
+                <li><a href="ofertas.html">Ofertas</a></li>
+                <li><a href="sucursales.html" class="nav-link-activo">Sucursales</a></li>
+            </ul>
+        </nav>
+
+        <div class="herramientas-usuario">
+            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
+            <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="contacto-header">
+            <h2>NUESTRAS SUCURSALES</h2>
+            <p>Encuentra tu tienda ElectroHogar más cercana. ¡Ven a visitarnos, conoce nuestros productos en persona y retira tus compras online gratis!</p>
+        </div>
+
+        <div class="contenedor-sucursales">
+            <div class="lista-sucursales">
+                <div class="sucursal-card">
+                    <h3>📍 Sucursal Central</h3>
+                    <p><strong>Dirección:</strong> Av. Corrientes 1234 (CABA)</p>
+                    <p><strong>Horario:</strong> Lunes a Sábado - 09:00 a 20:00 hs</p>
+                    <p><strong>Teléfono:</strong> 0800-111-HOGAR</p>
+                </div>
+
+                <div class="sucursal-card">
+                    <h3>📍 Sucursal Zona Norte</h3>
+                    <p><strong>Dirección:</strong> Av. Pres. Perón 1500, San Miguel</p>
+                    <p><strong>Horario:</strong> Lunes a Sábado - 10:00 a 21:00 hs</p>
+                    <p><strong>Teléfono:</strong> 0800-222-HOGAR</p>
+                </div>
+
+                <div class="sucursal-card">
+                    <h3>📍 Sucursal Zona Sur</h3>
+                    <p><strong>Dirección:</strong> Av. Cabildo 2040, Quilmes</p>
+                    <p><strong>Horario:</strong> Lunes a Viernes - 09:00 a 18:00 hs</p>
+                    <p><strong>Teléfono:</strong> 0800-333-HOGAR</p>
+                </div>
+            </div>
+
+            <div class="mapa-container">
+                <iframe 
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d105073.44367005296!2d-58.43329845000001!3d-34.61566245!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95bcca3b4ef90cbd%3A0xa0b3812e88e88e87!2sBuenos%20Aires%2C%20CABA!5e0!3m2!1ses-419!2sar!4v1715000000000!5m2!1ses-419!2sar" 
+                    width="100%" 
+                    height="100%" 
+                    style="border:0; min-height:400px;" 
+                    allowfullscreen="" 
+                    loading="lazy" 
+                    referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Todos los derechos reservados - Copyright 2026</p>
+    </footer>
+    <script src="script.js?v=4"></script>
+</body>
+</html>

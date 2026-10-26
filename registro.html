@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroHogar - Crear Cuenta</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+    <header>
+        <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
+            <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
+            <h1>ElectroHogar</h1>
+        </div>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="cocina.html">Cocina</a></li>
+                <li><a href="lavado.html">Lavado</a></li>
+                <li><a href="tecnologia.html">Tecnología</a></li>
+                <li><a href="ofertas.html">Ofertas</a></li>
+                <li><a href="sucursales.html">Sucursales</a></li>
+            </ul>
+        </nav>
+
+        <div class="herramientas-usuario">
+            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
+            <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
+        </div>
+    </header>
+
+    <main class="contenedor-registro">
+        <div class="caja-registro">
+            <h2>📝 Crear Cuenta</h2>
+            <form id="form-registro" onsubmit="procesarRegistro(event)">
+                <div class="form-group-registro">
+                    <label>Nombre y Apellido</label>
+                    <input type="text" id="reg-nombre" placeholder="Ej: Juan Pérez" required>
+                </div>
+                <div class="form-group-registro">
+                    <label>DNI</label>
+                    <input type="text" id="reg-dni" placeholder="Ej: 35123456" required>
+                </div>
+                <div class="form-group-registro">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="reg-email" placeholder="correo@ejemplo.com" required>
+                </div>
+                <div class="form-group-registro">
+                    <label>Contraseña</label>
+                    <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+                </div>
+                <button type="submit" id="btn-submit-registro" class="btn-registro">Registrarme</button>
+            </form>
+            <p class="texto-inferior-registro">
+                ¿Ya tienes cuenta? <a href="login.html">Inicia Sesión aquí</a>
+            </p>
+        </div>
+    </main>
+
+    <footer>
+        <p>Todos los derechos reservados - Copyright 2026</p>
+    </footer>
+    <script src="script.js?v=4"></script>
+</body>
+</html>

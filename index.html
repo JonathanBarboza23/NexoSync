@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroHogar - Inicio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+    <header>
+        <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
+            <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
+            <h1>ElectroHogar</h1>
+        </div>
+
+        <nav>
+            <ul>
+                <li><a href="index.html" class="nav-link-activo">Inicio</a></li>
+                <li><a href="cocina.html">Cocina</a></li>
+                <li><a href="lavado.html">Lavado</a></li>
+                <li><a href="tecnologia.html">Tecnología</a></li>
+                <li><a href="ofertas.html">Ofertas</a></li>
+                <li><a href="sucursales.html">Sucursales</a></li>
+            </ul>
+        </nav>
+
+        <div class="herramientas-usuario">
+            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
+            <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero-carousel">
+            <div class="slide fade" style="display:flex; background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('img/baner1.jpg');">
+                <div class="slide-texto">
+                    <p class="etiqueta-hero">PROMO / NOVEDADES</p>
+                    <h2>CONSIGUE LOS ÚLTIMOS ELECTRODOMÉSTICOS</h2>
+                    <p>Hasta un 30% de Descuento Esta Semana</p>
+                    <a href="ofertas.html" class="btn-compra">COMPRA AHORA</a>
+                </div>
+            </div>
+
+            <div class="slide fade" style="background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('img/baner2.jpg');">
+                <div class="slide-texto">
+                    <p class="etiqueta-hero">ESPECIAL COCINA</p>
+                    <h2>RENOVÁ TU COCINA ESTE MES</h2>
+                    <p>Hasta 6 cuotas sin interés en todos los productos</p>
+                    <a href="cocina.html" class="btn-compra">VER COCINA</a>
+                </div>
+            </div>
+
+            <div class="slide fade" style="background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('img/baner3.jpg');">
+                <div class="slide-texto">
+                    <p class="etiqueta-hero">LAVADO Y SECADO</p>
+                    <h2>REVOLUCIONA TU LAVARROPAS</h2>
+                    <p>Lavarropas de última tecnología al mejor precio</p>
+                    <a href="lavado.html" class="btn-compra">VER LAVADO</a>
+                </div>
+            </div>
+
+            <div class="slide fade" style="background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url('img/baner4.jpg');">
+                <div class="slide-texto">
+                    <p class="etiqueta-hero">SMART TV Y AUDIO</p>
+                    <h2>EL MEJOR ENTRETENIMIENTO</h2>
+                    <p>Equipa tu sala con consolas, monitores y sonido envolvente</p>
+                    <a href="tecnologia.html" class="btn-compra">VER TECNOLOGÍA</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="categorias">
+            <a href="cocina.html" class="btn-categoria">LÍNEA COCINA</a>
+            <a href="lavado.html" class="btn-categoria">LAVADO Y SECADO</a>
+            <a href="tecnologia.html" class="btn-categoria">TECNOLOGÍA</a>
+        </section>
+
+        <section class="productos-destacados">
+            <div class="ofertas-header" style="margin-bottom: 25px;">
+                <h2>CATÁLOGO COMPLETO</h2>
+                <p>Descubrí todos nuestros electrodomésticos con garantía oficial y stock en sucursales.</p>
+            </div>
+            <div class="grilla-productos" id="grilla-bd" data-categoria="todos"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Todos los derechos reservados - Copyright 2026</p>
+    </footer>
+    <script src="script.js?v=4"></script>
+</body>
+</html>

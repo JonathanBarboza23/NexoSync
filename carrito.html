@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElectroHogar - Mi Carrito</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+<body>
+
+    <header>
+        <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
+            <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
+            <h1>ElectroHogar</h1>
+        </div>
+
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="cocina.html">Cocina</a></li>
+                <li><a href="lavado.html">Lavado</a></li>
+                <li><a href="tecnologia.html">Tecnología</a></li>
+                <li><a href="ofertas.html">Ofertas</a></li>
+                <li><a href="sucursales.html">Sucursales</a></li>
+            </ul>
+        </nav>
+
+        <div class="herramientas-usuario">
+            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
+            <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
+            <button id="btn-panel-admin" class="btn-icon" style="display: none;" onclick="window.location.href='panel_admin.html'">⚙️ Panel</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="carrito-header">
+            <h2>MI CARRITO DE COMPRAS</h2>
+        </div>
+
+        <div class="contenedor-carrito">
+            <div class="items-carrito" id="contenedor-items"></div>
+
+            <div class="resumen-pedido">
+                <h3>Resumen del Pedido</h3>
+                <div class="fila-resumen">
+                    <span>Subtotal:</span>
+                    <span id="resumen-subtotal">$0</span>
+                </div>
+                <div class="fila-resumen">
+                    <span>Envío:</span>
+                    <span style="color: green; font-weight: bold;">Gratis</span>
+                </div>
+                <hr>
+                <div class="fila-resumen total">
+                    <span>Total:</span>
+                    <span id="resumen-total">$0</span>
+                </div>
+                <button class="btn-finalizar" id="btn-ir-pagar" onclick="finalizarCompra()">FINALIZAR COMPRA</button>
+                <a href="index.html" class="link-seguir-comprando">Seguir comprando</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Todos los derechos reservados - Copyright 2026</p>
+    </footer>
+    <script src="script.js?v=4"></script>
+</body>
+</html>
