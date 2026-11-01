@@ -1,7 +1,78 @@
+
+function cancelarCompra() {
+    if (confirm("¿Estás seguro de que deseas cancelar la compra en curso? Volverás a tu carrito de compras sin perder tus productos.")) {
+        mostrarToast("Compra cancelada.");
+        setTimeout(() => {
+            window.location.href = "carrito.html";
+        }, 400);
+    }
+}
+
+let stockPorSedeGlobal = {};
+
+function verificarStockCheckout() {
+    let selectSuc = document.getElementById("sucursal-elegida");
+    let avisoStock = document.getElementById("aviso-stock-modalidad");
+    let radioRetiro = document.querySelector('input[name="tipo-entrega"][value="retiro"]');
+    let radioEnvio = document.querySelector('input[name="tipo-entrega"][value="envio"]');
+    if (!selectSuc || !avisoStock || carrito.length === 0) return;
+
+    let idSede = parseInt(selectSuc.value) || 1;
+    let nombreSede = selectSuc.options[selectSuc.selectedIndex] ? selectSuc.options[selectSuc.selectedIndex].text : "la sucursal seleccionada";
+
+    fetch('obtener_stock_sedes.php')
+        .then(r => r.json())
+        .then(data => {
+            if (data.exito && data.stock) {
+                stockPorSedeGlobal = data.stock;
+                let superaStockSede = false;
+                let prodAfectado = null;
+                let stockEnEstaSede = 0;
+                let stockTotalConsolidado = 0;
+
+                for (let item of carrito) {
+                    let stItem = stockPorSedeGlobal[item.id] || {};
+                    let cantSede = stItem[idSede] !== undefined ? Number(stItem[idSede]) : 0;
+                    let cantTotal = Object.values(stItem).reduce((acc, v) => acc + Number(v), 0);
+
+                    if (item.cantidad > cantSede) {
+                        superaStockSede = true;
+                        prodAfectado = item;
+                        stockEnEstaSede = cantSede;
+                        stockTotalConsolidado = cantTotal;
+                        break;
+                    }
+                }
+
+                if (superaStockSede) {
+                    avisoStock.style.display = "block";
+                    avisoStock.innerHTML = `
+                        <strong>ℹ️ Disponibilidad por sucursal:</strong><br>
+                        La cantidad de <em>${escaparHTML(prodAfectado.nombre)}</em> en tu pedido (${prodAfectado.cantidad} unid.) supera el stock disponible en ${escaparHTML(nombreSede)} (${stockEnEstaSede} unid.).<br>
+                        Para adquirir hasta el <strong>stock total consolidado (${stockTotalConsolidado} unid.)</strong>, la compra debe procesarse con la opción de <strong>🚚 Envío a Domicilio</strong>.
+                    `;
+
+                    if (radioRetiro && radioRetiro.checked) {
+                        mostrarToast("ℹ️ Supera el stock de la sucursal. Seleccionando Envío a Domicilio para comprar con stock total consolidado.");
+                        if (radioEnvio) {
+                            radioEnvio.checked = true;
+                            alternarTipoEntrega();
+                        }
+                    }
+                } else {
+                    avisoStock.style.display = "none";
+                }
+            }
+        })
+        .catch(() => {});
+}
+
 let carrito = [];
 let slideIndex = 0;
 let catalogoGlobal = [];
 let productosCargados = [];
+
+// Escapa texto antes de insertarlo con innerHTML (evita XSS).
 function escaparHTML(texto) {
     return String(texto ?? '')
         .replace(/&/g, '&amp;')
@@ -130,6 +201,20 @@ function actualizarContador() {
 }
 
 function agregarAlCarrito(id) {
+    let usuarioActivo = obtenerUsuarioActivo();
+    if (!usuarioActivo) {
+        mostrarToast("⚠️ Debes iniciar sesión para agregar productos al carrito.", true);
+        localStorage.setItem("redireccionPostLogin", window.location.href);
+        setTimeout(() => {
+            window.location.href = "login.html";
+        }, 900);
+        return;
+    }
+    if (usuarioActivo.rol === 'admin') {
+        mostrarToast("Las cuentas de administrador no realizan compras; usa una cuenta Cliente.", true);
+        return;
+    }
+
     let prod = productosCargados.find(p => Number(p.id) === Number(id));
     if (!prod) return;
 
@@ -156,11 +241,27 @@ function procesarRegistro(evento) {
     let btn = document.getElementById("btn-submit-registro");
     if (btn) { btn.disabled = true; btn.innerText = "Registrando..."; }
 
+    let nombreVal = document.getElementById("reg-nombre").value.trim();
+    let dniVal = document.getElementById("reg-dni").value.trim();
+    let emailVal = document.getElementById("reg-email").value.trim();
+    let passVal = document.getElementById("reg-password").value.trim();
+    let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
+    if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
+        mostrarToast("❌ El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
+        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+        return;
+    }
+    if (!/^\d{6,11}$/.test(dniVal)) {
+        mostrarToast("❌ El DNI debe contener solo números (6 a 11 dígitos).", true);
+        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+        return;
+    }
+
     let datos = {
-        nombre: document.getElementById("reg-nombre").value.trim(),
-        dni: document.getElementById("reg-dni").value.trim(),
-        email: document.getElementById("reg-email").value.trim(),
-        password: document.getElementById("reg-password").value.trim()
+        nombre: nombreVal,
+        dni: dniVal,
+        email: emailVal,
+        password: passVal
     };
 
     fetch('registro_usuario.php', {
@@ -196,6 +297,19 @@ function renderizarCarrito() {
         let texto = "$" + valor.toLocaleString('es-AR');
         if (spanSubtotal) spanSubtotal.innerText = texto;
         if (spanTotal) spanTotal.innerText = texto;
+    }
+
+    let usuarioActivo = obtenerUsuarioActivo();
+    if (!usuarioActivo) {
+        contenedor.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px;">
+                <p style="font-size: 16px; color: #555; margin-bottom: 20px;">⚠️ Debes iniciar sesión con tu cuenta de cliente para gestionar tu carrito y agregar productos.</p>
+                <button type="button" class="btn-comprar-grande" style="width: auto; padding: 12px 28px; background: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="window.location.href='login.html'">👤 Iniciar Sesión</button>
+            </div>
+        `;
+        mostrarTotales(0);
+        if (btnPagar) { btnPagar.disabled = true; btnPagar.innerText = "INICIA SESIÓN PARA COMPRAR"; }
+        return;
     }
 
     if (carrito.length === 0) {
@@ -326,7 +440,7 @@ function verificarEstadoSesionUI() {
     if (usuarioActivo) {
         let primerNombre = (usuarioActivo.nombre || "Usuario").split(" ")[0];
         if (btnLogin) {
-            btnLogin.innerHTML = `Salir (${escaparHTML(primerNombre)})`;
+            btnLogin.innerHTML = `🚪 Salir (${escaparHTML(primerNombre)})`;
             btnLogin.onclick = cerrarSesion;
         }
         if (usuarioActivo.rol === 'admin') {
@@ -493,6 +607,7 @@ function inicializarCheckout() {
 
     bloquearDatosClienteCheckout(usuarioActivo);
     actualizarResumenCheckout();
+    verificarStockCheckout();
 }
 
 function actualizarResumenCheckout() {
@@ -563,11 +678,14 @@ function alternarTipoEntrega() {
         bloqueEnvio.style.display = "none";
         inputDir.required = false;
         inputLoc.required = false;
+        verificarStockCheckout();
     } else {
         bloqueRetiro.style.display = "none";
         bloqueEnvio.style.display = "block";
         inputDir.required = true;
         inputLoc.required = true;
+        let avisoStock = document.getElementById("aviso-stock-modalidad");
+        if (avisoStock) avisoStock.style.display = "none";
     }
 }
 
@@ -653,7 +771,6 @@ function procesarPagoFicticio(evento) {
             <div class="comprobante-exito">
                 <h2 style="color: #28a745; margin-top: 0;">✅ ¡COMPRA CONFIRMADA!</h2>
                 <p>Presenta este código QR y tu DNI para retirar o recibir tu pedido.</p>
-                <p>Se envio a tu correo esta confirmación.</p>
 
                 <hr class="separador-checkout">
 

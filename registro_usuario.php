@@ -15,32 +15,42 @@ $email = trim($datos['email']);
 $dni = trim($datos['dni']);
 $password = $datos['password'];
 
-if ($nombre === '' || strlen($nombre) > 100) {
-    echo json_encode(["exito" => false, "error" => "Nombre inválido."]);
+if (!preg_match('/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\'-]{2,100}$/u', $nombre)) {
+    echo json_encode(["exito" => false, "error" => "El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (')."]);
     exit;
 }
+
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo json_encode(["exito" => false, "error" => "El correo electrónico no es válido."]);
     exit;
 }
+
 if (!preg_match('/^\d{6,11}$/', $dni)) {
-    echo json_encode(["exito" => false, "error" => "El DNI/CUIT debe tener solo números (6 a 11 dígitos)."]);
+    echo json_encode(["exito" => false, "error" => "El DNI debe contener solo números (6 a 11 dígitos)."]);
     exit;
 }
 if (strlen($password) < 6) {
     echo json_encode(["exito" => false, "error" => "La contraseña debe tener al menos 6 caracteres."]);
     exit;
 }
-
-$stmt = $conexion->prepare("SELECT id FROM usuarios WHERE email = ?");
-$stmt->bind_param("s", $email);
-$stmt->execute();
-$stmt->store_result();
-if ($stmt->num_rows > 0) {
-    echo json_encode(["exito" => false, "error" => "El correo ya está registrado."]);
+$stmt_dni = $conexion->prepare("SELECT id FROM usuarios WHERE dni = ?");
+$stmt_dni->bind_param("s", $dni);
+$stmt_dni->execute();
+$stmt_dni->store_result();
+if ($stmt_dni->num_rows > 0) {
+    echo json_encode(["exito" => false, "error" => "El DNI ingresado ya se encuentra registrado con otro usuario."]);
     exit;
 }
-$stmt->close();
+$stmt_dni->close();
+$stmt_email = $conexion->prepare("SELECT id FROM usuarios WHERE email = ?");
+$stmt_email->bind_param("s", $email);
+$stmt_email->execute();
+$stmt_email->store_result();
+if ($stmt_email->num_rows > 0) {
+    echo json_encode(["exito" => false, "error" => "El correo electrónico ya está registrado."]);
+    exit;
+}
+$stmt_email->close();
 
 $password_encriptada = password_hash($password, PASSWORD_BCRYPT);
 $carrito_vacio = '[]';
@@ -54,7 +64,7 @@ if ($stmt->execute()) {
     obtener_o_crear_cliente($conexion, $nombre, $dni, $email);
     echo json_encode(["exito" => true, "mensaje" => "Usuario registrado correctamente."]);
 } else {
-    echo json_encode(["exito" => false, "error" => "No se pudo registrar el usuario."]);
+    echo json_encode(["exito" => false, "error" => "No se pudo registrar el usuario en la base de datos."]);
 }
 
 $stmt->close();

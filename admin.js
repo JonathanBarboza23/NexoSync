@@ -50,6 +50,7 @@ function cambiarPestana(idModulo, boton) {
 let productosGlobalesAdmin = [];
 let sedesAdmin = [];
 let stockPorSede = {};
+
 function cargarInventario() {
     Promise.all([
         fetch('obtener_productos.php').then(res => res.json()),

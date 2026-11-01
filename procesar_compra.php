@@ -11,7 +11,7 @@ $datos = json_decode(file_get_contents("php://input"), true);
 
 foreach (['nombre_cliente', 'email_cliente', 'metodo_envio', 'productos'] as $campo) {
     if (empty($datos[$campo])) {
-        echo json_encode(["exito" => false, "error" => "Faltan datos para procesar la orden."]);
+        echo json_encode(["exito" => false, "error" => "Faltan datos obligatorios para procesar la orden."]);
         exit;
     }
 }
@@ -24,6 +24,7 @@ $direccion = trim($datos['direccion'] ?? '');
 $cuotas = intval($datos['cuotas'] ?? 1);
 $id_sede_pedida = intval($datos['id_sede'] ?? 0);
 $id_usuario = $_SESSION['usuario_id'] ?? null;
+
 if ($id_usuario) {
     $stmt_u = $conexion->prepare("SELECT nombre, email, dni FROM usuarios WHERE id = ?");
     $stmt_u->bind_param("i", $id_usuario);
@@ -42,15 +43,15 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit;
 }
 if (!in_array($metodo, ['retiro', 'envio'], true)) {
-    echo json_encode(["exito" => false, "error" => "Método de entrega inválido."]);
+    echo json_encode(["exito" => false, "error" => "Modalidad de entrega inválida."]);
     exit;
 }
 if ($metodo === 'envio' && $direccion === '') {
-    echo json_encode(["exito" => false, "error" => "Falta la dirección de entrega."]);
+    echo json_encode(["exito" => false, "error" => "Debes ingresar la dirección de entrega a domicilio."]);
     exit;
 }
-if (!is_array($datos['productos'])) {
-    echo json_encode(["exito" => false, "error" => "Carrito inválido."]);
+if (!is_array($datos['productos']) || empty($datos['productos'])) {
+    echo json_encode(["exito" => false, "error" => "El carrito de compras está vacío o es inválido."]);
     exit;
 }
 
@@ -60,9 +61,6 @@ if ($metodo === 'retiro') {
         echo json_encode(["exito" => false, "error" => "Sucursal de retiro inválida."]);
         exit;
     }
-    $sedes_candidatas = [$id_sede_pedida];
-} else {
-    $sedes_candidatas = $sedes_validas;
 }
 
 $t_stock = nombre_tabla_stock($conexion);
@@ -83,7 +81,7 @@ try {
         $stmt_prod->bind_param("i", $id);
         $stmt_prod->execute();
         $prod = $stmt_prod->get_result()->fetch_assoc();
-        if (!$prod) throw new Exception("Uno de los productos ya no existe.");
+        if (!$prod) throw new Exception("Uno de los productos seleccionados ya no existe en el catálogo.");
 
         $precio_unit = round((float)$prod['precio'] * $factor_cuotas, 2);
         $total += $precio_unit * $cant;
@@ -92,33 +90,41 @@ try {
     $stmt_prod->close();
     $total = round($total, 2);
 
-    $stmt_stock = $conexion->prepare(
-        "SELECT cantidad FROM `$t_stock` WHERE id_producto = ? AND id_sede = ?"
-    );
     $id_sede_elegida = null;
-    $faltante = '';
-
-    foreach ($sedes_candidatas as $sede) {
-        $alcanza = true;
+    if ($metodo === 'retiro') {
+        $stmt_stock = $conexion->prepare("SELECT cantidad FROM `$t_stock` WHERE id_producto = ? AND id_sede = ?");
         foreach ($lineas as $l) {
-            $stmt_stock->bind_param("ii", $l['id'], $sede);
+            $stmt_stock->bind_param("ii", $l['id'], $id_sede_pedida);
             $stmt_stock->execute();
             $st = $stmt_stock->get_result()->fetch_assoc();
-            if (!$st || (int)$st['cantidad'] < $l['cant']) {
-                $alcanza = false;
-                $faltante = $l['nombre'];
-                break;
+            $stock_sede_actual = $st ? (int)$st['cantidad'] : 0;
+
+            if ($stock_sede_actual < $l['cant']) {
+                $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
+                $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
+
+                if ($stock_total >= $l['cant']) {
+                    throw new Exception("La cantidad solicitada de '{$l['nombre']}' ({$l['cant']} unid.) supera el stock disponible en la sucursal seleccionada ({$stock_sede_actual} unid.). Puedes adquirirla con el stock total ({$stock_total} unid.) seleccionando Envío a Domicilio.");
+                } else {
+                    throw new Exception("No hay stock suficiente para '{$l['nombre']}' (disponible en todas las sedes: {$stock_total} unid.).");
+                }
             }
         }
-        if ($alcanza) { $id_sede_elegida = $sede; break; }
-    }
-    $stmt_stock->close();
+        $stmt_stock->close();
+        $id_sede_elegida = $id_sede_pedida;
 
-    if ($id_sede_elegida === null) {
-        throw new Exception($metodo === 'retiro'
-            ? "No hay stock suficiente en la sucursal elegida (falta: $faltante)."
-            : "Ninguna sede tiene stock suficiente para enviar todo el pedido (falta: $faltante).");
+    } else {
+        foreach ($lineas as $l) {
+            $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
+            $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
+
+            if ($stock_total < $l['cant']) {
+                throw new Exception("Stock total insuficiente para '{$l['nombre']}'. Solicitadas: {$l['cant']} unid., Disponibles en total: {$stock_total} unid.");
+            }
+        }
+        $id_sede_elegida = in_array($id_sede_pedida, $sedes_validas, true) ? $id_sede_pedida : $sedes_validas[0];
     }
+
     $id_cliente = obtener_o_crear_cliente($conexion, $nombre, $dni, $email);
     $id_estado_inicial = obtener_id_estado_por_nombre($conexion, 'proceso', 4);
     $codigo_seguimiento = 'EH-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
@@ -179,30 +185,29 @@ try {
         $vals_ord[] = '?';
         $types_ord .= 's';
         if ($metodo === 'envio' && !tiene_columna($conexion, 'ordenes', 'direccion')) {
-            $texto_entrega = substr('Envio: ' . $direccion, 0, 50);
+            $params_ord[] = 'Envio: ' . $direccion;
         } else {
-            $texto_entrega = ($metodo === 'retiro') ? 'Retiro en Sucursal' : 'Envio a Domicilio';
+            $params_ord[] = $metodo;
         }
-        $params_ord[] = $texto_entrega;
-    } elseif (tiene_columna($conexion, 'ordenes', 'metodo_envio')) {
-        $cols_ord[] = 'metodo_envio';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        $params_ord[] = $metodo;
     }
-
-    if (tiene_columna($conexion, 'ordenes', 'direccion')) {
+    if (tiene_columna($conexion, 'ordenes', 'direccion') && $metodo === 'envio') {
         $cols_ord[] = 'direccion';
         $vals_ord[] = '?';
         $types_ord .= 's';
         $params_ord[] = $direccion;
     }
 
+    // Columna de estado
     if (tiene_columna($conexion, 'ordenes', 'id_estado')) {
         $cols_ord[] = 'id_estado';
         $vals_ord[] = '?';
         $types_ord .= 'i';
         $params_ord[] = $id_estado_inicial;
+    } elseif (tiene_columna($conexion, 'ordenes', 'estado')) {
+        $cols_ord[] = 'estado';
+        $vals_ord[] = '?';
+        $types_ord .= 's';
+        $params_ord[] = 'En proceso';
     }
 
     $sql_ord = "INSERT INTO ordenes (" . implode(', ', $cols_ord) . ") VALUES (" . implode(', ', $vals_ord) . ")";
@@ -211,21 +216,37 @@ try {
     $stmt->execute();
     $id_orden = $conexion->insert_id;
     $stmt->close();
-
     $stmt_det = $conexion->prepare(
         "INSERT INTO detalle_ordenes (id_orden, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)"
-    );
-    $stmt_upd = $conexion->prepare(
-        "UPDATE `$t_stock` SET cantidad = cantidad - ? WHERE id_producto = ? AND id_sede = ?"
     );
     foreach ($lineas as $l) {
         $stmt_det->bind_param("iiid", $id_orden, $l['id'], $l['cant'], $l['precio']);
         $stmt_det->execute();
-        $stmt_upd->bind_param("iii", $l['cant'], $l['id'], $id_sede_elegida);
-        $stmt_upd->execute();
     }
     $stmt_det->close();
-    $stmt_upd->close();
+
+    if ($metodo === 'retiro') {
+        $stmt_upd = $conexion->prepare("UPDATE `$t_stock` SET cantidad = cantidad - ? WHERE id_producto = ? AND id_sede = ?");
+        foreach ($lineas as $l) {
+            $stmt_upd->bind_param("iii", $l['cant'], $l['id'], $id_sede_elegida);
+            $stmt_upd->execute();
+        }
+        $stmt_upd->close();
+    } else {
+        foreach ($lineas as $l) {
+            $restante = $l['cant'];
+            foreach ($sedes_validas as $s_id) {
+                if ($restante <= 0) break;
+                $st_res = $conexion->query("SELECT cantidad FROM `$t_stock` WHERE id_producto = {$l['id']} AND id_sede = $s_id");
+                $disp = $st_res ? (int)$st_res->fetch_assoc()['cantidad'] : 0;
+                if ($disp > 0) {
+                    $desc = min($disp, $restante);
+                    $conexion->query("UPDATE `$t_stock` SET cantidad = cantidad - $desc WHERE id_producto = {$l['id']} AND id_sede = $s_id");
+                    $restante -= $desc;
+                }
+            }
+        }
+    }
 
     if ($id_usuario) {
         $carrito_vacio = '[]';
@@ -248,7 +269,6 @@ try {
 
 } catch (mysqli_sql_exception $e) {
     $conexion->rollback();
-    error_log("procesar_compra: " . $e->getMessage());
     echo json_encode(["exito" => false, "error" => "No se pudo registrar la orden: " . $e->getMessage()]);
 } catch (Exception $e) {
     $conexion->rollback();

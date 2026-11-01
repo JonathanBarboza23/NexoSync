@@ -6,7 +6,7 @@
     <title>ElectroHogar - Pasarela de Pago</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
@@ -32,6 +32,7 @@
             <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
             <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
             <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
+            <button id="btn-panel-admin" class="btn-icon" style="display: none;" onclick="window.location.href='panel_admin.html'">⚙️ Panel</button>
         </div>
     </header>
 
@@ -45,14 +46,17 @@
             <form class="formulario-pago" onsubmit="procesarPagoFicticio(event)">
                 <h3>1. Modalidad de Entrega</h3>
                 <div class="selector-metodo">
-                    <label class="opcion-metodo">
+                    <label class="opcion-metodo" id="label-opcion-retiro">
                         <input type="radio" name="tipo-entrega" value="retiro" checked onchange="alternarTipoEntrega()">
                         🏪 Retiro en Sucursal (Gratis)
                     </label>
-                    <label class="opcion-metodo">
+                    <label class="opcion-metodo" id="label-opcion-envio">
                         <input type="radio" name="tipo-entrega" value="envio" onchange="alternarTipoEntrega()">
                         🚚 Envío a Domicilio
                     </label>
+                </div>
+
+                <div id="aviso-stock-modalidad" style="display: none; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; padding: 12px 14px; font-size: 13.5px; margin: 10px 0 14px 0; line-height: 1.5;">
                 </div>
 
                 <div class="aviso-datos-bloqueados">
@@ -75,7 +79,7 @@
                 <div id="bloque-retiro-sucursal">
                     <div class="form-group">
                         <label>Selecciona la sucursal de retiro:</label>
-                        <select id="sucursal-elegida" required>
+                        <select id="sucursal-elegida" required onchange="verificarStockCheckout()">
                             <option value="1">📍 Sucursal Central - Av. Corrientes 1234 (CABA)</option>
                             <option value="2">📍 Sucursal Zona Norte - Av. Pres. Perón 1500, San Miguel</option>
                             <option value="3">📍 Sucursal Zona Sur - Av. Cabildo 2040, Quilmes</option>
@@ -153,7 +157,10 @@
                     </div>
                 </div>
 
-                <button type="submit" id="btn-submit-pago" class="btn-comprar-grande">Confirmar y Pagar</button>
+                <div class="acciones-checkout" style="display: flex; gap: 12px; margin-top: 20px; align-items: center;">
+                    <button type="submit" id="btn-submit-pago" class="btn-comprar-grande" style="flex: 2; margin: 0;">Confirmar y Pagar</button>
+                    <button type="button" id="btn-cancelar-compra" class="btn-cancelar-checkout" onclick="cancelarCompra()" style="flex: 1; padding: 14px; background: #fff; color: #dc3545; border: 2px solid #dc3545; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; transition: all 0.2s;">❌ Cancelar Compra</button>
+                </div>
             </form>
 
             <aside class="resumen-checkout">
@@ -184,6 +191,6 @@
     <footer>
         <p>Todos los derechos reservados - Copyright 2026</p>
     </footer>
-    <script src="script.js?v=4"></script>
+    <script src="script.js?v=5"></script>
 </body>
 </html>
