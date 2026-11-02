@@ -1,18 +1,30 @@
 <?php
 session_start();
 header('Content-Type: application/json; charset=utf-8');
-include 'conexion.php';
-include 'stock_helpers.php';
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+
+try {
+    include_once 'conexion.php';
+    include_once 'stock_helpers.php';
+} catch (Throwable $e) {
+    echo json_encode(["exito" => false, "error" => "Error al conectar con la base de datos: " . $e->getMessage()]);
+    exit;
+}
 
 $accion = $_GET['action'] ?? ($_POST['action'] ?? '');
 
 if ($accion === 'login') {
-    $datos = json_decode(file_get_contents("php://input"), true) ?? $_POST;
+    $rawInput = file_get_contents("php://input");
+    $datos = json_decode($rawInput, true) ?? $_POST;
     $usuario = trim($datos['usuario'] ?? '');
     $password = trim($datos['password'] ?? '');
 
     if (($usuario === 'admin' && $password === 'admin') || (isset($_SESSION['rol']) && $_SESSION['rol'] === 'admin')) {
         $_SESSION['db_admin_auth'] = true;
+        $_SESSION['rol'] = 'admin';
+        $_SESSION['usuario_id'] = 1;
+        $_SESSION['nombre'] = 'Administrador';
         echo json_encode(["exito" => true, "mensaje" => "Acceso total a base de datos concedido."]);
     } else {
         echo json_encode(["exito" => false, "error" => "Credenciales incorrectas. Ingresa con usuario 'admin' y contraseña 'admin'."]);
@@ -32,17 +44,21 @@ if (empty($_SESSION['db_admin_auth']) && (empty($_SESSION['rol']) || $_SESSION['
 }
 
 if ($accion === 'listar_tablas') {
-    $tablas = [];
-    $res = $conexion->query("SHOW TABLES");
-    if ($res) {
-        while ($f = $res->fetch_row()) {
-            $tname = $f[0];
-            $c_res = $conexion->query("SELECT COUNT(*) FROM `$tname`");
-            $total_filas = $c_res ? (int)$c_res->fetch_row()[0] : 0;
-            $tablas[] = ["nombre" => $tname, "filas" => $total_filas];
+    try {
+        $tablas = [];
+        $res = $conexion->query("SHOW TABLES");
+        if ($res) {
+            while ($f = $res->fetch_row()) {
+                $tname = $f[0];
+                $c_res = $conexion->query("SELECT COUNT(*) FROM `$tname`");
+                $total_filas = $c_res ? (int)$c_res->fetch_row()[0] : 0;
+                $tablas[] = ["nombre" => $tname, "filas" => $total_filas];
+            }
         }
+        echo json_encode(["exito" => true, "tablas" => $tablas]);
+    } catch (Throwable $e) {
+        echo json_encode(["exito" => false, "error" => "Error al listar tablas: " . $e->getMessage()]);
     }
-    echo json_encode(["exito" => true, "tablas" => $tablas]);
     exit;
 }
 
@@ -55,188 +71,221 @@ if ($tabla === '' || !tabla_existe($conexion, $tabla)) {
 
 function obtener_info_columnas($conexion, $tabla) {
     $cols = [];
-    $pk = null;
+    $pks = [];
     $res = $conexion->query("SHOW COLUMNS FROM `$tabla`");
     if ($res) {
         while ($col = $res->fetch_assoc()) {
             $cols[] = $col;
-            if ($col['Key'] === 'PRI' && $pk === null) {
-                $pk = $col['Field'];
+            if ($col['Key'] === 'PRI') {
+                $pks[] = $col['Field'];
             }
         }
     }
-    if ($pk === null && count($cols) > 0) {
-        $pk = $cols[0]['Field'];
+    if (empty($pks) && count($cols) > 0) {
+        $pks[] = $cols[0]['Field'];
     }
-    return [$cols, $pk];
+    return [$cols, $pks];
 }
 
 if ($accion === 'estructura') {
-    list($cols, $pk) = obtener_info_columnas($conexion, $tabla);
-    echo json_encode(["exito" => true, "columnas" => $cols, "pk" => $pk]);
+    try {
+        list($cols, $pks) = obtener_info_columnas($conexion, $tabla);
+        echo json_encode(["exito" => true, "columnas" => $cols, "pks" => $pks, "pk" => $pks[0] ?? '']);
+    } catch (Throwable $e) {
+        echo json_encode(["exito" => false, "error" => $e->getMessage()]);
+    }
     exit;
 }
 
 if ($accion === 'listar_filas') {
-    list($cols, $pk) = obtener_info_columnas($conexion, $tabla);
-    $q = trim($_GET['q'] ?? '');
-    $limite = intval($_GET['limit'] ?? 100);
-    if ($limite <= 0 || $limite > 500) $limite = 100;
+    try {
+        list($cols, $pks) = obtener_info_columnas($conexion, $tabla);
+        $pk_orden = !empty($pks) ? $pks[0] : $cols[0]['Field'];
+        $q = trim($_GET['q'] ?? '');
+        $limite = intval($_GET['limit'] ?? 100);
+        if ($limite <= 0 || $limite > 500) $limite = 100;
 
-    $where = "";
-    if ($q !== '') {
-        $conds = [];
-        $q_esc = $conexion->real_escape_string($q);
-        foreach ($cols as $c) {
-            $f = $c['Field'];
-            $conds[] = "`$f` LIKE '%$q_esc%'";
+        $where = "";
+        if ($q !== '') {
+            $conds = [];
+            $q_esc = $conexion->real_escape_string($q);
+            foreach ($cols as $c) {
+                $f = $c['Field'];
+                $conds[] = "`$f` LIKE '%$q_esc%'";
+            }
+            if (!empty($conds)) {
+                $where = " WHERE " . implode(' OR ', $conds);
+            }
         }
-        if (!empty($conds)) {
-            $where = " WHERE " . implode(' OR ', $conds);
+
+        $sql = "SELECT * FROM `$tabla` $where ORDER BY `$pk_orden` DESC LIMIT $limite";
+        $res = $conexion->query($sql);
+        $filas = [];
+        if ($res) {
+            while ($r = $res->fetch_assoc()) {
+                $filas[] = $r;
+            }
         }
+
+        echo json_encode([
+            "exito" => true,
+            "tabla" => $tabla,
+            "columnas" => $cols,
+            "pks" => $pks,
+            "pk" => $pk_orden,
+            "filas" => $filas
+        ]);
+    } catch (Throwable $e) {
+        echo json_encode(["exito" => false, "error" => "Error al consultar filas: " . $e->getMessage()]);
     }
-
-    $sql = "SELECT * FROM `$tabla` $where ORDER BY `$pk` DESC LIMIT $limite";
-    $res = $conexion->query($sql);
-    $filas = [];
-    if ($res) {
-        while ($r = $res->fetch_assoc()) {
-            $filas[] = $r;
-        }
-    }
-
-    echo json_encode(["exito" => true, "tabla" => $tabla, "columnas" => $cols, "pk" => $pk, "filas" => $filas]);
     exit;
 }
 
 if ($accion === 'crear_registro') {
-    $datos = json_decode(file_get_contents("php://input"), true) ?? $_POST;
-    list($cols, $pk) = obtener_info_columnas($conexion, $tabla);
+    try {
+        $rawInput = file_get_contents("php://input");
+        $datos = json_decode($rawInput, true) ?? $_POST;
+        list($cols, $pks) = obtener_info_columnas($conexion, $tabla);
 
-    $campos_insert = [];
-    $valores_insert = [];
-    $types = '';
-    $params = [];
+        $campos_insert = [];
+        $valores_insert = [];
 
-    foreach ($cols as $c) {
-        $campo = $c['Field'];
-        if ($c['Extra'] === 'auto_increment' && empty($datos[$campo])) {
-            continue;
-        }
-        if (array_key_exists($campo, $datos)) {
-            $val = $datos[$campo];
-            if ($campo === 'password' && strlen($val) < 50 && $tabla === 'usuarios') {
-                $val = password_hash($val, PASSWORD_BCRYPT);
+        foreach ($cols as $c) {
+            $campo = $c['Field'];
+            if ($c['Extra'] === 'auto_increment' && (empty($datos[$campo]) || $datos[$campo] === '')) {
+                continue;
             }
-            $campos_insert[] = "`$campo`";
-            $valores_insert[] = "?";
-            $types .= 's';
-            $params[] = $val;
+            if (array_key_exists($campo, $datos)) {
+                $val = $datos[$campo];
+                if ($campo === 'password' && $tabla === 'usuarios' && strlen($val) < 50 && $val !== '') {
+                    $val = password_hash($val, PASSWORD_BCRYPT);
+                }
+                $campos_insert[] = "`$campo`";
+                if ($val === null || $val === '' && $c['Null'] === 'YES') {
+                    $valores_insert[] = "NULL";
+                } else {
+                    $valores_insert[] = "'" . $conexion->real_escape_string((string)$val) . "'";
+                }
+            }
         }
-    }
 
-    if (empty($campos_insert)) {
-        echo json_encode(["exito" => false, "error" => "No se enviaron datos válidos para insertar."]);
-        exit;
-    }
+        if (empty($campos_insert)) {
+            echo json_encode(["exito" => false, "error" => "No se enviaron campos válidos para insertar."]);
+            exit;
+        }
 
-    $sql = "INSERT INTO `$tabla` (" . implode(', ', $campos_insert) . ") VALUES (" . implode(', ', $valores_insert) . ")";
-    $stmt = $conexion->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param($types, ...$params);
-        $ok = $stmt->execute();
-        $ins_id = $conexion->insert_id;
-        $stmt->close();
+        $sql = "INSERT INTO `$tabla` (" . implode(', ', $campos_insert) . ") VALUES (" . implode(', ', $valores_insert) . ")";
+        $ok = $conexion->query($sql);
         if ($ok) {
-            echo json_encode(["exito" => true, "mensaje" => "Registro creado correctamente.", "insert_id" => $ins_id]);
+            $nuevo_id = $conexion->insert_id;
+            echo json_encode(["exito" => true, "mensaje" => "Registro agregado correctamente.", "insert_id" => $nuevo_id]);
         } else {
-            echo json_encode(["exito" => false, "error" => "Error al insertar en la base de datos."]);
+            echo json_encode(["exito" => false, "error" => "Error al insertar en la base de datos: " . $conexion->error]);
         }
-    } else {
-        echo json_encode(["exito" => false, "error" => "Error en la consulta: " . $conexion->error]);
+    } catch (Throwable $e) {
+        echo json_encode(["exito" => false, "error" => "Excepción al guardar registro: " . $e->getMessage()]);
     }
     exit;
 }
 
 if ($accion === 'actualizar_registro') {
-    $datos = json_decode(file_get_contents("php://input"), true) ?? $_POST;
-    list($cols, $pk) = obtener_info_columnas($conexion, $tabla);
+    try {
+        $rawInput = file_get_contents("php://input");
+        $datos = json_decode($rawInput, true) ?? $_POST;
+        list($cols, $pks) = obtener_info_columnas($conexion, $tabla);
 
-    $pk_val = $datos['_pk_val'] ?? ($datos[$pk] ?? null);
-    if ($pk_val === null) {
-        echo json_encode(["exito" => false, "error" => "Falta la clave primaria para identificar el registro a editar."]);
-        exit;
-    }
-
-    $sets = [];
-    $types = '';
-    $params = [];
-
-    foreach ($cols as $c) {
-        $campo = $c['Field'];
-        if ($campo === $pk) continue;
-        if (array_key_exists($campo, $datos)) {
-            $val = $datos[$campo];
-            if ($campo === 'password' && $tabla === 'usuarios' && strlen($val) < 50 && $val !== '') {
-                $val = password_hash($val, PASSWORD_BCRYPT);
+        $where_pks = [];
+        if (!empty($datos['_pks']) && is_array($datos['_pks'])) {
+            foreach ($datos['_pks'] as $pk_field => $pk_v) {
+                $where_pks[] = "`$pk_field` = '" . $conexion->real_escape_string((string)$pk_v) . "'";
             }
-            $sets[] = "`$campo` = ?";
-            $types .= 's';
-            $params[] = $val;
-        }
-    }
-
-    if (empty($sets)) {
-        echo json_encode(["exito" => false, "error" => "No hay campos para actualizar."]);
-        exit;
-    }
-
-    $sql = "UPDATE `$tabla` SET " . implode(', ', $sets) . " WHERE `$pk` = ?";
-    $types .= 's';
-    $params[] = $pk_val;
-
-    $stmt = $conexion->prepare($sql);
-    if ($stmt) {
-        $stmt->bind_param($types, ...$params);
-        $ok = $stmt->execute();
-        $stmt->close();
-        if ($ok) {
-            echo json_encode(["exito" => true, "mensaje" => "Registro actualizado con éxito."]);
+        } elseif (isset($datos['_pk_val']) && !empty($pks)) {
+            $pk_main = $pks[0];
+            $where_pks[] = "`$pk_main` = '" . $conexion->real_escape_string((string)$datos['_pk_val']) . "'";
         } else {
-            echo json_encode(["exito" => false, "error" => "Error al actualizar registro."]);
+            foreach ($pks as $pk_field) {
+                if (isset($datos[$pk_field])) {
+                    $where_pks[] = "`$pk_field` = '" . $conexion->real_escape_string((string)$datos[$pk_field]) . "'";
+                }
+            }
         }
-    } else {
-        echo json_encode(["exito" => false, "error" => "Error SQL: " . $conexion->error]);
+
+        if (empty($where_pks)) {
+            echo json_encode(["exito" => false, "error" => "No se pudo identificar la clave primaria del registro a editar."]);
+            exit;
+        }
+
+        $sets = [];
+        foreach ($cols as $c) {
+            $campo = $c['Field'];
+
+            if (array_key_exists($campo, $datos)) {
+                $val = $datos[$campo];
+                if ($campo === 'password' && $tabla === 'usuarios' && strlen($val) < 50 && $val !== '') {
+                    $val = password_hash($val, PASSWORD_BCRYPT);
+                }
+                if ($val === null || ($val === '' && $c['Null'] === 'YES')) {
+                    $sets[] = "`$campo` = NULL";
+                } else {
+                    $sets[] = "`$campo` = '" . $conexion->real_escape_string((string)$val) . "'";
+                }
+            }
+        }
+
+        if (empty($sets)) {
+            echo json_encode(["exito" => false, "error" => "No hay campos con modificaciones para guardar."]);
+            exit;
+        }
+
+        $sql = "UPDATE `$tabla` SET " . implode(', ', $sets) . " WHERE " . implode(' AND ', $where_pks);
+        $ok = $conexion->query($sql);
+
+        if ($ok) {
+            echo json_encode(["exito" => true, "mensaje" => "Registro modificado con éxito en `$tabla`."]);
+        } else {
+            echo json_encode(["exito" => false, "error" => "Error al actualizar registro: " . $conexion->error]);
+        }
+    } catch (Throwable $e) {
+        echo json_encode(["exito" => false, "error" => "Excepción al actualizar: " . $e->getMessage()]);
     }
     exit;
 }
 
 if ($accion === 'eliminar_registro') {
-    $datos = json_decode(file_get_contents("php://input"), true) ?? $_POST;
-    list($cols, $pk) = obtener_info_columnas($conexion, $tabla);
+    try {
+        $rawInput = file_get_contents("php://input");
+        $datos = json_decode($rawInput, true) ?? $_POST;
+        list($cols, $pks) = obtener_info_columnas($conexion, $tabla);
 
-    $pk_val = $datos['_pk_val'] ?? ($datos[$pk] ?? null);
-    if ($pk_val === null) {
-        echo json_encode(["exito" => false, "error" => "Falta identificar el registro a eliminar."]);
-        exit;
-    }
+        $where_pks = [];
+        if (!empty($datos['_pks']) && is_array($datos['_pks'])) {
+            foreach ($datos['_pks'] as $pk_field => $pk_v) {
+                $where_pks[] = "`$pk_field` = '" . $conexion->real_escape_string((string)$pk_v) . "'";
+            }
+        } elseif (isset($datos['_pk_val']) && !empty($pks)) {
+            $pk_main = $pks[0];
+            $where_pks[] = "`$pk_main` = '" . $conexion->real_escape_string((string)$datos['_pk_val']) . "'";
+        }
 
-    $stmt = $conexion->prepare("DELETE FROM `$tabla` WHERE `$pk` = ?");
-    if ($stmt) {
-        $stmt->bind_param("s", $pk_val);
-        $ok = $stmt->execute();
-        $stmt->close();
+        if (empty($where_pks)) {
+            echo json_encode(["exito" => false, "error" => "Falta la clave primaria para identificar el registro a eliminar."]);
+            exit;
+        }
+
+        $sql = "DELETE FROM `$tabla` WHERE " . implode(' AND ', $where_pks);
+        $ok = $conexion->query($sql);
+
         if ($ok) {
             echo json_encode(["exito" => true, "mensaje" => "Registro eliminado correctamente de `$tabla`."]);
         } else {
-            echo json_encode(["exito" => false, "error" => "No se pudo eliminar el registro."]);
+            echo json_encode(["exito" => false, "error" => "Error al eliminar registro: " . $conexion->error]);
         }
-    } else {
-        echo json_encode(["exito" => false, "error" => "Error SQL: " . $conexion->error]);
+    } catch (Throwable $e) {
+        echo json_encode(["exito" => false, "error" => "Excepción al eliminar: " . $e->getMessage()]);
     }
     exit;
 }
 
-echo json_encode(["exito" => false, "error" => "Acción desconocida."]);
+echo json_encode(["exito" => false, "error" => "Acción desconocida solicitada."]);
 $conexion->close();
 ?>

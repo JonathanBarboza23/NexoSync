@@ -12,6 +12,7 @@ if ($id <= 0) {
 }
 
 try {
+    // 5) Verificar si el producto se encuentra en detalle_ordenes (vendido o en orden)
     if (tabla_existe($conexion, 'detalle_ordenes')) {
         $stmt_det = $conexion->prepare("SELECT COUNT(*) AS total FROM detalle_ordenes WHERE id_producto = ?");
         $stmt_det->bind_param("i", $id);
@@ -28,6 +29,7 @@ try {
         }
     }
 
+    // 5) Verificar si el producto se encuentra en items_carrito
     if (tabla_existe($conexion, 'items_carrito')) {
         $stmt_car = $conexion->prepare("SELECT COUNT(*) AS total FROM items_carrito WHERE id_producto = ?");
         $stmt_car->bind_param("i", $id);
@@ -44,6 +46,7 @@ try {
         }
     }
 
+    // 5) Verificar si está en carritos JSON de la tabla usuarios
     if (tiene_columna($conexion, 'usuarios', 'carrito')) {
         $p1 = '%"id":' . $id . ',%';
         $p2 = '%"id": ' . $id . ',%';
@@ -64,6 +67,7 @@ try {
         }
     }
 
+    // Si pasa todas las validaciones, proceder con el borrado transaccional
     $conexion->begin_transaction();
 
     $t_stock = nombre_tabla_stock($conexion);

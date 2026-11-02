@@ -1331,6 +1331,7 @@ body.dark-mode .item-mini-checkout {
     text-decoration: underline;
 }
 
+/* Grilla de productos principal */
 .productos-destacados {
     margin: 20px 0 40px 0;
 }
@@ -1360,6 +1361,7 @@ body.dark-mode .item-mini-checkout {
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
+/* Botones de administración y tablas */
 .btn-primario {
     padding: 8px 14px;
     background-color: #28a745;
@@ -1397,6 +1399,7 @@ body.dark-mode .item-mini-checkout {
     cursor: not-allowed;
 }
 
+/* Sucursales y Mapa */
 .contacto-header {
     text-align: center;
     margin: 20px auto 35px auto;
@@ -1455,6 +1458,8 @@ body.dark-mode .item-mini-checkout {
     }
 }
 
+
+/* === MEJORAS VISUALES DEL SIMULADOR === */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 body {
@@ -1517,6 +1522,8 @@ body.dark-mode .stock-badge {
     color: #aaa !important;
 }
 
+
+/* ================= BLOQUEO DE DATOS DEL CLIENTE EN CHECKOUT ================= */
 .aviso-datos-bloqueados {
     background-color: #eef6ff;
     border-left: 4px solid #007bff;
@@ -1553,6 +1560,7 @@ body.dark-mode input.input-bloqueado[readonly] {
     border-color: #444 !important;
 }
 
+/* Botón cancelar compra en checkout */
 .btn-cancelar-checkout {
     transition: all 0.2s ease-in-out;
 }

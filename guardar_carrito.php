@@ -2,6 +2,8 @@
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 include 'conexion.php';
+
+// El usuario sale de la sesión del servidor, nunca de lo que envía el navegador.
 if (!isset($_SESSION['usuario_id'])) {
     echo json_encode(["exito" => false, "error" => "No hay sesión iniciada."]);
     exit;

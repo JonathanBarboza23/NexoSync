@@ -152,7 +152,11 @@ function actualizarProducto(idProducto) {
     formData.append('stocks', JSON.stringify(stocks));
 
     fetch('actualizar_producto.php', { method: 'POST', body: formData })
-        .then(res => res.json())
+        .then(async res => {
+            const text = await res.text();
+            try { return JSON.parse(text); }
+            catch (e) { throw new Error(text.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim().substring(0, 180) || "Respuesta inválida del servidor"); }
+        })
         .then(data => {
             if (data.exito) {
                 mostrarToast("✅ Precio y stock por sucursal actualizados");
@@ -161,7 +165,7 @@ function actualizarProducto(idProducto) {
                 alert("Error: " + data.error);
             }
         })
-        .catch(() => alert("Error de conexión al actualizar el producto."));
+        .catch(err => alert("Error al actualizar: " + err.message));
 }
 
 function eliminarProducto(idProducto) {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElectroHogar - Panel de Administración de Base de Datos</title>
+    <title>ElectroHogar - Panel de Administración de Base de Datos -</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
     <link rel="stylesheet" href="style.css?v=5">
@@ -129,6 +129,7 @@
             cursor: pointer;
             font-size: 13.5px;
         }
+        /* Modal CRUD */
         .modal-db {
             display: none;
             position: fixed;
@@ -163,28 +164,11 @@
             <ul>
                 <li><a href="index.html">Tienda</a></li>
                 <li><a href="panel_admin.html">Panel General</a></li>
-                <li><a href="admin_db.html" class="activo" style="font-weight:bold; color:#007bff;">🗄️ Admin BD</a></li>
+               
             </ul>
         </nav>
+
     </header>
-    <div id="modal-login-m8" class="modal-db" style="display: none;">
-        <div class="modal-db-contenido" style="max-width: 420px; text-align: center;">
-            <h2 style="margin-top:0;">🔐 Acceso al Administrador de Base de Datos</h2>
-            <p style="color:#666; font-size:13.5px; line-height:1.4;">
-                Ingreso exclusivo para gestión y control total de tablas.
-            </p>
-            <form onsubmit="procesarLoginM8(event)">
-                <div class="form-group" style="text-align:left; margin-bottom:14px;">
-                    <label style="display:block; margin-bottom:5px; font-weight:600;">Usuario:</label>
-                    <input type="text" id="m8-usuario" placeholder="admin" value="admin" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
-                </div>
-                <div class="form-group" style="text-align:left; margin-bottom:18px;">
-                    <label style="display:block; margin-bottom:5px; font-weight:600;">Contraseña:</label>
-                    <input type="password" id="m8-password" placeholder="admin" value="admin" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
-                </div>
-                <div id="m8-error-login" style="display:none; color:#dc3545; font-size:13px; margin-bottom:12px; font-weight:bold;"></div>
-                <button type="submit" id="btn-login-m8" style="width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
-                    Acceder a Base de Datos
                 </button>
                 <div style="margin-top:14px;">
                     <a href="panel_admin.html" style="font-size:13px; color:#555; text-decoration:none;">⬅️ Volver al Panel de Tienda</a>
@@ -195,8 +179,8 @@
 
     <main>
         <div class="ofertas-header" style="padding: 20px 0 10px 0;">
-            <h2>🗄️ PANEL DE CONTROL TOTAL DE BASE DE DATOS</h2>
-            <p>Visualización de todas las tablas del proyecto.</p>
+            <h2>🗄️ PANEL DE CONTROL TOTAL DE BASE DE DATOS </h2>
+            <p>Visualización de las tablas del proyecto.</p>
         </div>
 
         <div class="admin-db-layout">
@@ -243,7 +227,7 @@
     </div>
 
     <footer>
-        <p>ElectroHogar - Panel de Administración de Base de Datos -</p>
+        <p>ElectroHogar - Panel de Administración de Base de Datos - </p>
     </footer>
 
     <script src="script.js?v=5"></script>
@@ -251,18 +235,30 @@
         let tablasDisponibles = [];
         let tablaActual = "";
         let columnasActuales = [];
+        let pksActuales = [];
         let pkActual = "";
         let filasActuales = [];
         let modoEdicion = false;
         let pkEdicionValor = null;
+        let pksEdicionValores = {};
 
         document.addEventListener("DOMContentLoaded", () => {
             verificarAccesoM8();
         });
 
+        async function parsearRespuestaJSON(respuesta) {
+            const texto = await respuesta.text();
+            try {
+                return JSON.parse(texto);
+            } catch (e) {
+                const textoLimpio = texto.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                throw new Error(textoLimpio.substring(0, 220) || "El servidor no respondió con un formato JSON válido.");
+            }
+        }
+
         function verificarAccesoM8() {
             fetch('api_db_admin.php?action=listar_tablas')
-                .then(r => r.json())
+                .then(parsearRespuestaJSON)
                 .then(data => {
                     if (data.exito) {
                         tablasDisponibles = data.tablas;
@@ -295,11 +291,11 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ usuario: u, password: p })
             })
-            .then(r => r.json())
+            .then(parsearRespuestaJSON)
             .then(data => {
                 if (data.exito) {
                     document.getElementById("modal-login-m8").style.display = "none";
-                    mostrarToast("✅ Acceso autorizado como Administrador de Base de Datos");
+                    mostrarToast("✅ Acceso autorizado como Administrador de Base de Datos (M8)");
                     verificarAccesoM8();
                 } else {
                     errBox.style.display = "block";
@@ -308,9 +304,9 @@
                     btn.innerText = "Acceder a Base de Datos";
                 }
             })
-            .catch(() => {
+            .catch(err => {
                 errBox.style.display = "block";
-                errBox.innerText = "Error de conexión al autenticar.";
+                errBox.innerText = "Error: " + err.message;
                 btn.disabled = false;
                 btn.innerText = "Acceder a Base de Datos";
             });
@@ -342,20 +338,21 @@
 
             const url = `api_db_admin.php?action=listar_filas&tabla=${encodeURIComponent(nombreTabla)}&q=${encodeURIComponent(busqueda)}`;
             fetch(url)
-                .then(r => r.json())
+                .then(parsearRespuestaJSON)
                 .then(data => {
                     if (!data.exito) {
                         cont.innerHTML = `<p style='color:red; text-align:center;'>${data.error}</p>`;
                         return;
                     }
                     columnasActuales = data.columnas;
-                    pkActual = data.pk;
+                    pksActuales = data.pks || (data.pk ? [data.pk] : []);
+                    pkActual = data.pk || (pksActuales[0] || "");
                     filasActuales = data.filas;
-                    document.getElementById("subtitulo-tabla-actual").innerText = `Total registros visualizados: ${filasActuales.length} | Clave primaria: ${pkActual}`;
+                    document.getElementById("subtitulo-tabla-actual").innerText = `Total registros visualizados: ${filasActuales.length} | Clave(s) primaria(s): ${pksActuales.join(', ')}`;
                     renderizarTablaRegistros();
                 })
-                .catch(() => {
-                    cont.innerHTML = "<p style='color:red; text-align:center;'>Error al cargar datos de la tabla.</p>";
+                .catch(err => {
+                    cont.innerHTML = `<p style='color:red; text-align:center;'>Error al cargar datos: ${escaparHTML(err.message)}</p>`;
                 });
         }
 
@@ -366,7 +363,7 @@
                 return;
             }
 
-            let ths = columnasActuales.map(c => `<th>${c.Field} ${c.Key === 'PRI' ? '🔑' : ''}</th>`).join("");
+            let ths = columnasActuales.map(c => `<th>${c.Field} ${pksActuales.includes(c.Field) ? '🔑' : ''}</th>`).join("");
             ths += "<th style='width: 140px; text-align:center;'>Acciones</th>";
 
             let trs = filasActuales.map((fila, idx) => {
@@ -378,11 +375,10 @@
                     return `<td>${escaparHTML(str)}</td>`;
                 }).join("");
 
-                let pkVal = fila[pkActual];
                 tds += `
                     <td style='text-align:center;'>
                         <button class="btn-accion-mini btn-accion-edit" onclick="abrirModalEditarRegistro(${idx})" title="Modificar registro">✏️ Editar</button>
-                        <button class="btn-accion-mini btn-accion-del" onclick="eliminarRegistroM8('${escaparHTML(pkVal)}')" title="Baja de registro">🗑️</button>
+                        <button class="btn-accion-mini btn-accion-del" onclick="eliminarRegistroM8(${idx})" title="Baja de registro">🗑️</button>
                     </td>
                 `;
                 return `<tr>${tds}</tr>`;
@@ -404,6 +400,7 @@
         function abrirModalNuevoRegistro() {
             modoEdicion = false;
             pkEdicionValor = null;
+            pksEdicionValores = {};
             document.getElementById("modal-titulo-accion").innerText = `➕ Nuevo Registro en [${tablaActual}]`;
             generarCamposFormulario({});
             document.getElementById("modal-form-registro").style.display = "flex";
@@ -414,7 +411,12 @@
             if (!fila) return;
             modoEdicion = true;
             pkEdicionValor = fila[pkActual];
-            document.getElementById("modal-titulo-accion").innerText = `✏️ Editar Registro en [${tablaActual}] (${pkActual} = ${pkEdicionValor})`;
+            pksEdicionValores = {};
+            pksActuales.forEach(k => {
+                pksEdicionValores[k] = fila[k];
+            });
+            const pksDesc = pksActuales.map(k => `${k}=${fila[k]}`).join(', ');
+            document.getElementById("modal-titulo-accion").innerText = `✏️ Editar Registro en [${tablaActual}] (${pksDesc})`;
             generarCamposFormulario(fila);
             document.getElementById("modal-form-registro").style.display = "flex";
         }
@@ -427,7 +429,7 @@
             const cont = document.getElementById("campos-formulario-dinamico");
             cont.innerHTML = columnasActuales.map(col => {
                 const nombreCampo = col.Field;
-                const esPK = (nombreCampo === pkActual);
+                const esPK = pksActuales.includes(nombreCampo);
                 const esAI = (col.Extra === 'auto_increment');
                 const valActual = datosFila[nombreCampo] !== undefined && datosFila[nombreCampo] !== null ? datosFila[nombreCampo] : '';
 
@@ -459,7 +461,8 @@
             btn.innerText = "⏳ Guardando...";
 
             const payload = {
-                _pk_val: pkEdicionValor
+                _pk_val: pkEdicionValor,
+                _pks: pksEdicionValores
             };
             columnasActuales.forEach(c => {
                 const el = document.getElementById("campo-m8-" + c.Field);
@@ -474,7 +477,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(r => r.json())
+            .then(parsearRespuestaJSON)
             .then(data => {
                 btn.disabled = false;
                 btn.innerText = "Guardar Registro";
@@ -483,33 +486,39 @@
                     cerrarModalRegistro();
                     cargarFilasTabla(tablaActual);
                 } else {
-                    alert("Error: " + data.error);
+                    alert("❌ Error: " + data.error);
                 }
             })
-            .catch(() => {
+            .catch(err => {
                 btn.disabled = false;
                 btn.innerText = "Guardar Registro";
-                alert("Error de conexión al guardar el registro.");
+                alert("Error al guardar: " + err.message);
             });
         }
 
-        function eliminarRegistroM8(pkVal) {
-            if (confirm(`⚠️ ¿Confirmas eliminar permanentemente el registro con ${pkActual} = '${pkVal}' de la tabla ${tablaActual}?`)) {
+        function eliminarRegistroM8(idxFila) {
+            const fila = filasActuales[idxFila];
+            if (!fila) return;
+            const pks = {};
+            pksActuales.forEach(k => { pks[k] = fila[k]; });
+            const identif = Object.entries(pks).map(([k, v]) => `${k}='${v}'`).join(' y ');
+
+            if (confirm(`⚠️ ¿Confirmas eliminar permanentemente el registro con ${identif} de la tabla ${tablaActual}?`)) {
                 fetch(`api_db_admin.php?action=eliminar_registro&tabla=${encodeURIComponent(tablaActual)}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ _pk_val: pkVal })
+                    body: JSON.stringify({ _pks: pks, _pk_val: fila[pkActual] })
                 })
-                .then(r => r.json())
+                .then(parsearRespuestaJSON)
                 .then(data => {
                     if (data.exito) {
                         mostrarToast("🗑️ " + data.mensaje);
                         cargarFilasTabla(tablaActual);
                     } else {
-                        alert("Error: " + data.error);
+                        alert("❌ Error: " + data.error);
                     }
                 })
-                .catch(() => alert("Error de red al eliminar el registro."));
+                .catch(err => alert("Error al eliminar: " + err.message));
             }
         }
     </script>

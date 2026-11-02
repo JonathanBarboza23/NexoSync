@@ -18,6 +18,8 @@ if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo json_encode(["exito" => false, "error" => "Ingresa un correo electrónico válido."]);
     exit;
 }
+
+// Asegurar columnas de recuperación en la tabla usuarios
 try {
     if (!tiene_columna($conexion, 'usuarios', 'token_recuperacion')) {
         @$conexion->query("ALTER TABLE usuarios ADD COLUMN token_recuperacion VARCHAR(100) DEFAULT NULL");
@@ -26,6 +28,8 @@ try {
         @$conexion->query("ALTER TABLE usuarios ADD COLUMN token_expiracion DATETIME DEFAULT NULL");
     }
 } catch (Throwable $e) {}
+
+// Verificar si el usuario existe
 $stmt = $conexion->prepare("SELECT id, nombre, email FROM usuarios WHERE email = ?");
 $stmt->bind_param("s", $email);
 $stmt->execute();
@@ -33,19 +37,28 @@ $usuario = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$usuario) {
+    // Por seguridad, mensaje claro
     echo json_encode(["exito" => false, "error" => "No existe ninguna cuenta registrada con este correo electrónico."]);
     exit;
 }
+
+// Generar token único
 $token = bin2hex(random_bytes(24));
-$expiracion = date('Y-m-d H:i:s', time() + 3600);
+$expiracion = date('Y-m-d H:i:s', time() + 3600); // 1 hora de validez
+
+// Guardar token
 $stmt_upd = $conexion->prepare("UPDATE usuarios SET token_recuperacion = ?, token_expiracion = ? WHERE id = ?");
 $stmt_upd->bind_param("ssi", $token, $expiracion, $usuario['id']);
 $stmt_upd->execute();
 $stmt_upd->close();
+
+// Enlace de restablecimiento
 $protocolo = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $uri = rtrim(dirname($_SERVER['REQUEST_URI'] ?? ''), '/\\');
 $link_restablecer = "{$protocolo}{$host}{$uri}/restablecer_password.html?token={$token}&email=" . urlencode($email);
+
+// Enviar con PHPMailer
 $mail = new PHPMailer(true);
 $envio_ok = false;
 $detalle_error = '';

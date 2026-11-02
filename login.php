@@ -34,6 +34,7 @@ if ($usuario && password_verify($password, $usuario['password'])) {
     unset($usuario['password']);
     echo json_encode(["exito" => true, "usuario" => $usuario]);
 } else {
+    // Mismo mensaje para ambos casos: no revela si el correo existe.
     echo json_encode(["exito" => false, "error" => "Correo o contraseña incorrectos."]);
 }
 

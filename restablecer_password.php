@@ -19,6 +19,7 @@ if (strlen($password) < 6) {
     exit;
 }
 
+// Buscar usuario con dicho token y verificar expiración si existe la columna
 $sql = "SELECT id, nombre, email";
 if (tiene_columna($conexion, 'usuarios', 'token_expiracion')) {
     $sql .= ", token_expiracion";
@@ -43,7 +44,10 @@ if (!empty($usuario['token_expiracion'])) {
     }
 }
 
+// Hashear nueva contraseña
 $passHash = password_hash($password, PASSWORD_BCRYPT);
+
+// Actualizar contraseña y limpiar token
 $stmt_upd = $conexion->prepare("UPDATE usuarios SET password = ?, token_recuperacion = NULL, token_expiracion = NULL WHERE id = ?");
 $stmt_upd->bind_param("si", $passHash, $usuario['id']);
 $ok = $stmt_upd->execute();

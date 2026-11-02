@@ -1,4 +1,6 @@
 <?php
+// Funciones auxiliares alineadas 100% con el esquema de if0_43204352_electrohogar (electrohogar.sql)
+
 function tabla_existe($conexion, $tabla) {
     try {
         $res = $conexion->query("SHOW TABLES LIKE '" . $conexion->real_escape_string($tabla) . "'");
@@ -138,9 +140,9 @@ function asegurar_stock_inicial($conexion) {
                     $id_p = (int)$p['id'];
                     foreach ($sedes as $id_s) {
                         if ($tiene_min) {
-                            $conexion->query("INSERT IGNORE INTO `$t_stock` (id_sede, id_producto, cantidad, stock_minimo_alerta) VALUES ($id_s, $id_p, 10, 5)");
+                            $conexion->query("INSERT IGNORE INTO `$t_stock` (id_sede, id_producto, cantidad, stock_minimo_alerta) VALUES ($id_s, $id_p, 20, 5)");
                         } else {
-                            $conexion->query("INSERT IGNORE INTO `$t_stock` (id_sede, id_producto, cantidad) VALUES ($id_s, $id_p, 10)");
+                            $conexion->query("INSERT IGNORE INTO `$t_stock` (id_sede, id_producto, cantidad) VALUES ($id_s, $id_p, 20)");
                         }
                     }
                 }

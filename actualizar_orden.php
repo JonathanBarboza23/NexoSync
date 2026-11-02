@@ -9,6 +9,7 @@ $id = intval($datos['id'] ?? 0);
 $id_estado = intval($datos['id_estado'] ?? 0);
 
 if ($id > 0 && $id_estado > 0) {
+    // Si la tabla estado usa 4=en proceso, 5=completado, 6=cancelado (electrohogar.sql), mapeamos 2 -> 5
     if ($id_estado === 2) {
         $id_estado = obtener_id_estado_por_nombre($conexion, 'completad', 5);
     }

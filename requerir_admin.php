@@ -1,4 +1,5 @@
 <?php
+// Incluir al comienzo de todo endpoint que solo pueda usar un administrador.
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (($_SESSION['rol'] ?? '') !== 'admin') {

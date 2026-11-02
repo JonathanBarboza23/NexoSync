@@ -82,6 +82,7 @@ function escaparHTML(texto) {
         .replace(/'/g, '&#39;');
 }
 
+// Notificaciones flotantes idénticas al simulador
 function mostrarToast(mensaje, esError = false) {
     let cont = document.getElementById("toast-container");
     if (!cont) {
@@ -245,12 +246,16 @@ function procesarRegistro(evento) {
     let dniVal = document.getElementById("reg-dni").value.trim();
     let emailVal = document.getElementById("reg-email").value.trim();
     let passVal = document.getElementById("reg-password").value.trim();
+
+    // 1) Validar que solo contenga letras, espacios, acentos y apostrofes
     let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
     if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
         mostrarToast("❌ El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
         if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
         return;
     }
+
+    // 3) Validar DNI numérico
     if (!/^\d{6,11}$/.test(dniVal)) {
         mostrarToast("❌ El DNI debe contener solo números (6 a 11 dígitos).", true);
         if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
@@ -707,6 +712,8 @@ function procesarPagoFicticio(evento) {
     let btn = document.getElementById("btn-submit-pago");
     btn.disabled = true;
     btn.innerText = "⏳ Procesando pago y guardando orden...";
+
+    // Re-asegurar bloqueo y tomar estrictamente los datos del cliente registrado
     bloquearDatosClienteCheckout(usuarioActivo);
     let nombreCliente = (usuarioActivo.nombre || document.getElementById("pago-nombre").value).trim();
     let emailCliente = (usuarioActivo.email || document.getElementById("pago-email").value).trim();
