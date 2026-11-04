@@ -72,7 +72,6 @@ let slideIndex = 0;
 let catalogoGlobal = [];
 let productosCargados = [];
 
-// Escapa texto antes de insertarlo con innerHTML (evita XSS).
 function escaparHTML(texto) {
     return String(texto ?? '')
         .replace(/&/g, '&amp;')
@@ -82,7 +81,6 @@ function escaparHTML(texto) {
         .replace(/'/g, '&#39;');
 }
 
-// Notificaciones flotantes idénticas al simulador
 function mostrarToast(mensaje, esError = false) {
     let cont = document.getElementById("toast-container");
     if (!cont) {
@@ -246,8 +244,6 @@ function procesarRegistro(evento) {
     let dniVal = document.getElementById("reg-dni").value.trim();
     let emailVal = document.getElementById("reg-email").value.trim();
     let passVal = document.getElementById("reg-password").value.trim();
-
-    // 1) Validar que solo contenga letras, espacios, acentos y apostrofes
     let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
     if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
         mostrarToast("❌ El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
@@ -255,7 +251,6 @@ function procesarRegistro(evento) {
         return;
     }
 
-    // 3) Validar DNI numérico
     if (!/^\d{6,11}$/.test(dniVal)) {
         mostrarToast("❌ El DNI debe contener solo números (6 a 11 dígitos).", true);
         if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
@@ -671,6 +666,67 @@ function formatearTarjeta(input) {
     input.value = valor.replace(/(\d{4})(?=\d)/g, '$1 ');
 }
 
+function formatearVencimientoTarjeta(input) {
+    let v = input.value.replace(/\D/g, "");
+    if (v.length > 4) v = v.substring(0, 4);
+    if (v.length > 2) {
+        input.value = v.substring(0, 2) + "/" + v.substring(2);
+    } else {
+        input.value = v;
+    }
+}
+
+function validarVencimientoTarjeta(valor) {
+    if (!valor || !valor.trim()) {
+        return { valido: false, error: "Debes ingresar la fecha de vencimiento de la tarjeta." };
+    }
+    const partes = valor.trim().split("/");
+    if (partes.length !== 2 || partes[0].length !== 2 || partes[1].length !== 2) {
+        return { valido: false, error: "Formato de vencimiento inválido. Utiliza MM/AA (ej: 08/29)." };
+    }
+    const mes = parseInt(partes[0], 10);
+    const anio = 2000 + parseInt(partes[1], 10);
+
+    if (isNaN(mes) || mes < 1 || mes > 12) {
+        return { valido: false, error: "El mes de vencimiento debe estar entre 01 y 12." };
+    }
+    if (isNaN(anio)) {
+        return { valido: false, error: "El año de vencimiento no es válido." };
+    }
+
+    const ahora = new Date();
+    const anioActual = ahora.getFullYear();
+    const mesActual = ahora.getMonth() + 1;
+
+    if (anio < anioActual || (anio === anioActual && mes < mesActual)) {
+        return { valido: false, error: "❌ La tarjeta ingresada se encuentra vencida. Por favor, utiliza un medio de pago vigente." };
+    }
+    if (anio > anioActual + 20) {
+        return { valido: false, error: "❌ La fecha de vencimiento no es válida (año demasiado lejano)." };
+    }
+
+    return { valido: true, mes, anio };
+}
+
+function validarVencimientoEnInput(input) {
+    if (!input || !input.value.trim()) return;
+    let res = validarVencimientoTarjeta(input.value.trim());
+    let errEl = document.getElementById("error-venc-tarjeta");
+    if (!res.valido) {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.innerText = res.error;
+            errEl.style.display = "block";
+        }
+    } else {
+        input.style.borderColor = "#28a745";
+        if (errEl) {
+            errEl.style.display = "none";
+        }
+    }
+}
+
+
 function alternarTipoEntrega() {
     let tipo = document.querySelector('input[name="tipo-entrega"]:checked').value;
     let bloqueRetiro = document.getElementById("bloque-retiro-sucursal");
@@ -712,8 +768,6 @@ function procesarPagoFicticio(evento) {
     let btn = document.getElementById("btn-submit-pago");
     btn.disabled = true;
     btn.innerText = "⏳ Procesando pago y guardando orden...";
-
-    // Re-asegurar bloqueo y tomar estrictamente los datos del cliente registrado
     bloquearDatosClienteCheckout(usuarioActivo);
     let nombreCliente = (usuarioActivo.nombre || document.getElementById("pago-nombre").value).trim();
     let emailCliente = (usuarioActivo.email || document.getElementById("pago-email").value).trim();
@@ -731,6 +785,48 @@ function procesarPagoFicticio(evento) {
         btn.innerText = "Confirmar y Pagar";
     }
 
+    let metodoPago = document.querySelector('input[name="metodo-pago"]:checked').value;
+    let vencTarjeta = "";
+
+    if (metodoPago === "tarjeta") {
+        let inputNum = document.getElementById("num-tarjeta");
+        let numTarjeta = inputNum ? inputNum.value.replace(/\s+/g, '') : "";
+        if (numTarjeta.length < 15) {
+            mostrarToast("❌ El número de tarjeta debe tener al menos 15 dígitos.", true);
+            if (inputNum) inputNum.focus();
+            restaurarBoton();
+            return;
+        }
+
+        let inputVenc = document.getElementById("venc-tarjeta");
+        vencTarjeta = inputVenc ? inputVenc.value.trim() : "";
+        let resVenc = validarVencimientoTarjeta(vencTarjeta);
+        if (!resVenc.valido) {
+            mostrarToast(resVenc.error, true);
+            if (inputVenc) {
+                inputVenc.focus();
+                inputVenc.style.borderColor = "#dc3545";
+                let errEl = document.getElementById("error-venc-tarjeta");
+                if (errEl) { errEl.innerText = resVenc.error; errEl.style.display = "block"; }
+            }
+            restaurarBoton();
+            return;
+        } else {
+            let errEl = document.getElementById("error-venc-tarjeta");
+            if (errEl) errEl.style.display = "none";
+            if (inputVenc) inputVenc.style.borderColor = "#ced4da";
+        }
+
+        let inputCvv = document.getElementById("cvv-tarjeta");
+        let cvvTarjeta = inputCvv ? inputCvv.value.trim() : "";
+        if (cvvTarjeta.length < 3) {
+            mostrarToast("❌ El código de seguridad (CVV) debe tener 3 o 4 dígitos.", true);
+            if (inputCvv) inputCvv.focus();
+            restaurarBoton();
+            return;
+        }
+    }
+
     fetch('procesar_compra.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -739,6 +835,8 @@ function procesarPagoFicticio(evento) {
             email_cliente: emailCliente,
             dni_cliente: dniCliente,
             cuotas: cuotas,
+            metodo_pago: metodoPago,
+            vencimiento_tarjeta: vencTarjeta,
             id_sede: parseInt(selectSucursal.value),
             metodo_envio: tipoEntrega,
             direccion: tipoEntrega === "envio" ? direccionCliente + ", " + localidadCliente : "",

@@ -25,7 +25,6 @@ $cuotas = intval($datos['cuotas'] ?? 1);
 $id_sede_pedida = intval($datos['id_sede'] ?? 0);
 $id_usuario = $_SESSION['usuario_id'] ?? null;
 
-// Si el cliente tiene sesión iniciada, forzar estrictamente sus datos registrados en la base de datos
 if ($id_usuario) {
     $stmt_u = $conexion->prepare("SELECT nombre, email, dni FROM usuarios WHERE id = ?");
     $stmt_u->bind_param("i", $id_usuario);
@@ -54,6 +53,29 @@ if ($metodo === 'envio' && $direccion === '') {
 if (!is_array($datos['productos']) || empty($datos['productos'])) {
     echo json_encode(["exito" => false, "error" => "El carrito de compras está vacío o es inválido."]);
     exit;
+}
+
+$metodo_pago = trim($datos['metodo_pago'] ?? 'tarjeta');
+$venc_tarjeta = trim($datos['vencimiento_tarjeta'] ?? '');
+
+if ($metodo_pago === 'tarjeta' && $venc_tarjeta !== '') {
+    if (!preg_match('/^(0[1-9]|1[0-2])\/([0-9]{2})$/', $venc_tarjeta, $matches)) {
+        echo json_encode(["exito" => false, "error" => "El formato de vencimiento de la tarjeta es inválido (debe ser MM/AA)."]);
+        exit;
+    }
+    $mes = intval($matches[1]);
+    $anio = 2000 + intval($matches[2]);
+    $anioActual = intval(date('Y'));
+    $mesActual = intval(date('n'));
+
+    if ($anio < $anioActual || ($anio === $anioActual && $mes < $mesActual)) {
+        echo json_encode(["exito" => false, "error" => "La tarjeta ingresada se encuentra vencida. Por favor, utiliza un medio de pago vigente."]);
+        exit;
+    }
+    if ($anio > $anioActual + 20) {
+        echo json_encode(["exito" => false, "error" => "El año de vencimiento de la tarjeta no es válido."]);
+        exit;
+    }
 }
 
 $sedes_validas = ids_sedes($conexion);
@@ -92,10 +114,6 @@ try {
     $total = round($total, 2);
 
     $id_sede_elegida = null;
-
-    // 2) Validación de stock según modalidad:
-    // Retiro en sucursal: debe haber stock suficiente en la sede elegida.
-    // Si supera el stock de la sede pero hay stock total consolidado, se debe comprar con Envío a Domicilio.
     if ($metodo === 'retiro') {
         $stmt_stock = $conexion->prepare("SELECT cantidad FROM `$t_stock` WHERE id_producto = ? AND id_sede = ?");
         foreach ($lineas as $l) {
@@ -105,7 +123,6 @@ try {
             $stock_sede_actual = $st ? (int)$st['cantidad'] : 0;
 
             if ($stock_sede_actual < $l['cant']) {
-                // Consultar stock total consolidado
                 $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
                 $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
 
@@ -120,7 +137,6 @@ try {
         $id_sede_elegida = $id_sede_pedida;
 
     } else {
-        // Modalidad: Envío a Domicilio -> puede comprar hasta el stock total consolidado
         foreach ($lineas as $l) {
             $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
             $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
@@ -129,16 +145,13 @@ try {
                 throw new Exception("Stock total insuficiente para '{$l['nombre']}'. Solicitadas: {$l['cant']} unid., Disponibles en total: {$stock_total} unid.");
             }
         }
-        // Asignar sede cabecera para el registro de la orden
         $id_sede_elegida = in_array($id_sede_pedida, $sedes_validas, true) ? $id_sede_pedida : $sedes_validas[0];
     }
 
-    // Sincronizar u obtener el id_cliente en la tabla `clientes`
     $id_cliente = obtener_o_crear_cliente($conexion, $nombre, $dni, $email);
     $id_estado_inicial = obtener_id_estado_por_nombre($conexion, 'proceso', 4);
     $codigo_seguimiento = 'EH-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
 
-    // Construir INSERT dinámico compatible con `ordenes` de electrohogar.sql
     $cols_ord = [];
     $vals_ord = [];
     $types_ord = '';
@@ -181,7 +194,6 @@ try {
         $params_ord[] = $total;
     }
 
-    // Columna de sede
     foreach (['id_sede_origen', 'id_sede', 'id_sede_retiro'] as $c_sede) {
         if (tiene_columna($conexion, 'ordenes', $c_sede)) {
             $cols_ord[] = $c_sede;
@@ -192,7 +204,6 @@ try {
         }
     }
 
-    // Columna de entrega
     if (tiene_columna($conexion, 'ordenes', 'tipo_entrega')) {
         $cols_ord[] = 'tipo_entrega';
         $vals_ord[] = '?';
@@ -210,7 +221,6 @@ try {
         $params_ord[] = $direccion;
     }
 
-    // Columna de estado
     if (tiene_columna($conexion, 'ordenes', 'id_estado')) {
         $cols_ord[] = 'id_estado';
         $vals_ord[] = '?';
@@ -229,8 +239,6 @@ try {
     $stmt->execute();
     $id_orden = $conexion->insert_id;
     $stmt->close();
-
-    // Insertar detalle_ordenes
     $stmt_det = $conexion->prepare(
         "INSERT INTO detalle_ordenes (id_orden, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)"
     );
@@ -240,9 +248,6 @@ try {
     }
     $stmt_det->close();
 
-    // 2) Descontar stock:
-    // Si es retiro, descuenta de la sede elegida.
-    // Si es envío a domicilio y supera una sede, descuenta entre las sedes que tengan stock disponible.
     if ($metodo === 'retiro') {
         $stmt_upd = $conexion->prepare("UPDATE `$t_stock` SET cantidad = cantidad - ? WHERE id_producto = ? AND id_sede = ?");
         foreach ($lineas as $l) {
@@ -251,7 +256,6 @@ try {
         }
         $stmt_upd->close();
     } else {
-        // Envío a domicilio: deducción distribuida multi-sede
         foreach ($lineas as $l) {
             $restante = $l['cant'];
             foreach ($sedes_validas as $s_id) {
@@ -267,7 +271,6 @@ try {
         }
     }
 
-    // Vaciar carrito en base de datos si el usuario está registrado
     if ($id_usuario) {
         $carrito_vacio = '[]';
         $stmt_c = $conexion->prepare("UPDATE usuarios SET carrito = ? WHERE id = ?");
