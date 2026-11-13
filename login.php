@@ -31,11 +31,14 @@ if ($usuario && password_verify($password, $usuario['password'])) {
     $_SESSION['nombre'] = $usuario['nombre'] ?? '';
     $_SESSION['email'] = $usuario['email'] ?? '';
     $_SESSION['dni'] = $usuario['dni'] ?? '';
+    if ($usuario['rol'] === 'admin') {
+        $_SESSION['db_admin_auth'] = true;
+    }
     unset($usuario['password']);
     echo json_encode(["exito" => true, "usuario" => $usuario]);
 } else {
-    // Mismo mensaje para ambos casos: no revela si el correo existe.
     echo json_encode(["exito" => false, "error" => "Correo o contraseña incorrectos."]);
 }
 
 $conexion->close();
+?>

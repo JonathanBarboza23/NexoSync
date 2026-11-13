@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElectroHogar - Mi Carrito</title>
+    <title>ElectroHogar - Mi Carrito de Compras</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
-
     <header>
         <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
             <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
@@ -18,56 +17,63 @@
 
         <nav>
             <ul>
-                <li><a href="index.html">Inicio</a></li>
-                <li><a href="cocina.html">Cocina</a></li>
-                <li><a href="lavado.html">Lavado</a></li>
-                <li><a href="tecnologia.html">Tecnología</a></li>
-                <li><a href="ofertas.html">Ofertas</a></li>
-                <li><a href="sucursales.html">Sucursales</a></li>
+                <li><a href="index.html" class="activo">Inicio</a></li>
+                <li><a href="cocina.html" class="">Cocina</a></li>
+                <li><a href="lavado.html" class="">Lavado</a></li>
+                <li><a href="tecnologia.html" class="">Tecnología</a></li>
+                <li><a href="ofertas.html" class="">Ofertas</a></li>
+                <li><a href="sucursales.html" class="">Sucursales</a></li>
             </ul>
         </nav>
 
         <div class="herramientas-usuario">
-            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
-            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="window.location.href='login.html'">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-mis-compras" style="display: none; background:#007bff; color:#fff; font-weight:bold;" onclick="window.location.href='mis_compras.html'">📦 Mis Compras</button>
             <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
             <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
             <button id="btn-panel-admin" class="btn-icon" style="display: none;" onclick="window.location.href='panel_admin.html'">⚙️ Panel</button>
         </div>
     </header>
-
     <main>
-        <div class="carrito-header">
-            <h2>MI CARRITO DE COMPRAS</h2>
+        <div class="ofertas-header">
+            <h2>🛒 MI CARRITO DE COMPRAS</h2>
         </div>
 
         <div class="contenedor-carrito">
-            <div class="items-carrito" id="contenedor-items"></div>
+            <div class="items-carrito-columna">
+                <div class="items-carrito" id="contenedor-items"></div>
+
+                <div id="caja-disponibilidad-retiro-sedes" style="display: none; margin-top: 18px;">
+                    <div id="aviso-envio-domicilio-sugerido" style="display: none; background: #eef6ff; color: #1d3557; border-left: 4px solid #007bff; padding: 12px 14px; border-radius: 4px; font-size: 13px; line-height: 1.4;">
+                    </div>
+                </div>
+            </div>
 
             <div class="resumen-pedido">
-                <h3>Resumen del Pedido</h3>
+                <h3>Resumen de tu Pedido</h3>
                 <div class="fila-resumen">
-                    <span>Subtotal:</span>
+                    <span>Subtotal productos:</span>
                     <span id="resumen-subtotal">$0</span>
                 </div>
                 <div class="fila-resumen">
-                    <span>Envío:</span>
-                    <span style="color: green; font-weight: bold;">Gratis</span>
+                    <span>Costo de envío:</span>
+                    <span style="color: #28a745; font-weight: bold;">GRATIS</span>
                 </div>
                 <hr>
                 <div class="fila-resumen total">
-                    <span>Total:</span>
+                    <span>Total a abonar:</span>
                     <span id="resumen-total">$0</span>
                 </div>
                 <button class="btn-finalizar" id="btn-ir-pagar" onclick="finalizarCompra()">FINALIZAR COMPRA</button>
-                <a href="index.html" class="link-seguir-comprando">Seguir comprando</a>
+                <div style="text-align:center; margin-top:14px;">
+                    <a href="index.html" style="font-size:13.5px; color:#007bff; text-decoration:none;">⬅️ Continuar explorando productos</a>
+                </div>
             </div>
         </div>
     </main>
-
     <footer>
-        <p>Todos los derechos reservados - Copyright 2026</p>
+        <p>Todos los derechos reservados - Copyright 2026 ElectroHogar S.A.</p>
     </footer>
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=9"></script>
 </body>
 </html>

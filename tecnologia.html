@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElectroHogar - Categoría Tecnología</title>
+    <title>ElectroHogar - Tecnología</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
-
     <header>
         <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
             <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
@@ -18,38 +17,33 @@
 
         <nav>
             <ul>
-                <li><a href="index.html">Inicio</a></li>
-                <li><a href="cocina.html">Cocina</a></li>
-                <li><a href="lavado.html">Lavado</a></li>
-                <li><a href="tecnologia.html" class="nav-link-activo">Tecnología</a></li>
-                <li><a href="ofertas.html">Ofertas</a></li>
-                <li><a href="sucursales.html">Sucursales</a></li>
+                <li><a href="index.html" class="">Inicio</a></li>
+                <li><a href="cocina.html" class="">Cocina</a></li>
+                <li><a href="lavado.html" class="">Lavado</a></li>
+                <li><a href="tecnologia.html" class="activo">Tecnología</a></li>
+                <li><a href="ofertas.html" class="">Ofertas</a></li>
+                <li><a href="sucursales.html" class="">Sucursales</a></li>
             </ul>
         </nav>
 
         <div class="herramientas-usuario">
-            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
-            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="window.location.href='login.html'">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-mis-compras" style="display: none; background:#007bff; color:#fff; font-weight:bold;" onclick="window.location.href='mis_compras.html'">📦 Mis Compras</button>
             <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
             <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
             <button id="btn-panel-admin" class="btn-icon" style="display: none;" onclick="window.location.href='panel_admin.html'">⚙️ Panel</button>
         </div>
     </header>
-
     <main>
         <div class="ofertas-header">
-            <h2>LÍNEA TECNOLOGÍA Y CLIMA</h2>
-            <p>Entretenimiento 4K, audio, gaming y climatización Inverter.</p>
+            <h2>TECNOLOGÍA</h2>
+            <p>Productos con disponibilidad inmediata y garantía oficial.</p>
         </div>
-
-        <section class="productos-destacados">
-            <div class="grilla-productos" id="grilla-bd" data-categoria="tecnologia"></div>
-        </section>
+        <section class="grilla-productos" data-categoria="tecnologia"></section>
     </main>
-
     <footer>
-        <p>Todos los derechos reservados - Copyright 2026</p>
+        <p>Todos los derechos reservados - Copyright 2026 ElectroHogar S.A.</p>
     </footer>
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=7"></script>
 </body>
 </html>

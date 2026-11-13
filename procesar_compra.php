@@ -26,7 +26,7 @@ $id_sede_pedida = intval($datos['id_sede'] ?? 0);
 $id_usuario = $_SESSION['usuario_id'] ?? null;
 
 if ($id_usuario) {
-    $stmt_u = $conexion->prepare("SELECT nombre, email, dni FROM usuarios WHERE id = ?");
+    $stmt_u = $conexion->prepare("SELECT id, nombre, email, dni FROM usuarios WHERE id = ?");
     $stmt_u->bind_param("i", $id_usuario);
     $stmt_u->execute();
     $u_db = $stmt_u->get_result()->fetch_assoc();
@@ -114,6 +114,7 @@ try {
     $total = round($total, 2);
 
     $id_sede_elegida = null;
+
     if ($metodo === 'retiro') {
         $stmt_stock = $conexion->prepare("SELECT cantidad FROM `$t_stock` WHERE id_producto = ? AND id_sede = ?");
         foreach ($lineas as $l) {
@@ -127,7 +128,7 @@ try {
                 $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
 
                 if ($stock_total >= $l['cant']) {
-                    throw new Exception("La cantidad solicitada de '{$l['nombre']}' ({$l['cant']} unid.) supera el stock disponible en la sucursal seleccionada ({$stock_sede_actual} unid.). Puedes adquirirla con el stock total ({$stock_total} unid.) seleccionando Envío a Domicilio.");
+                    throw new Exception("La cantidad de '{$l['nombre']}' ({$l['cant']} unid.) supera el stock disponible en la sucursal seleccionada ({$stock_sede_actual} unid.). Puedes adquirirla con el stock total ({$stock_total} unid.) seleccionando Envío a Domicilio.");
                 } else {
                     throw new Exception("No hay stock suficiente para '{$l['nombre']}' (disponible en todas las sedes: {$stock_total} unid.).");
                 }
@@ -137,6 +138,7 @@ try {
         $id_sede_elegida = $id_sede_pedida;
 
     } else {
+
         foreach ($lineas as $l) {
             $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
             $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
@@ -148,97 +150,18 @@ try {
         $id_sede_elegida = in_array($id_sede_pedida, $sedes_validas, true) ? $id_sede_pedida : $sedes_validas[0];
     }
 
-    $id_cliente = obtener_o_crear_cliente($conexion, $nombre, $dni, $email);
+    $id_cliente_usuario = $id_usuario ? $id_usuario : obtener_o_crear_usuario_cliente($conexion, $nombre, $dni, $email);
     $id_estado_inicial = obtener_id_estado_por_nombre($conexion, 'proceso', 4);
     $codigo_seguimiento = 'EH-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
 
-    $cols_ord = [];
-    $vals_ord = [];
-    $types_ord = '';
-    $params_ord = [];
-
-    if (tiene_columna($conexion, 'ordenes', 'codigo_seguimiento')) {
-        $cols_ord[] = 'codigo_seguimiento';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        $params_ord[] = $codigo_seguimiento;
-    }
-    if (tiene_columna($conexion, 'ordenes', 'id_cliente')) {
-        $cols_ord[] = 'id_cliente';
-        $vals_ord[] = '?';
-        $types_ord .= 'i';
-        $params_ord[] = $id_cliente;
-    }
-    if (tiene_columna($conexion, 'ordenes', 'id_usuario')) {
-        $cols_ord[] = 'id_usuario';
-        $vals_ord[] = '?';
-        $types_ord .= 'i';
-        $params_ord[] = $id_usuario;
-    }
-    if (tiene_columna($conexion, 'ordenes', 'nombre_cliente')) {
-        $cols_ord[] = 'nombre_cliente';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        $params_ord[] = $nombre;
-    }
-    if (tiene_columna($conexion, 'ordenes', 'email_cliente')) {
-        $cols_ord[] = 'email_cliente';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        $params_ord[] = $email;
-    }
-    if (tiene_columna($conexion, 'ordenes', 'total')) {
-        $cols_ord[] = 'total';
-        $vals_ord[] = '?';
-        $types_ord .= 'd';
-        $params_ord[] = $total;
-    }
-
-    foreach (['id_sede_origen', 'id_sede', 'id_sede_retiro'] as $c_sede) {
-        if (tiene_columna($conexion, 'ordenes', $c_sede)) {
-            $cols_ord[] = $c_sede;
-            $vals_ord[] = '?';
-            $types_ord .= 'i';
-            $params_ord[] = $id_sede_elegida;
-            break;
-        }
-    }
-
-    if (tiene_columna($conexion, 'ordenes', 'tipo_entrega')) {
-        $cols_ord[] = 'tipo_entrega';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        if ($metodo === 'envio' && !tiene_columna($conexion, 'ordenes', 'direccion')) {
-            $params_ord[] = 'Envio: ' . $direccion;
-        } else {
-            $params_ord[] = $metodo;
-        }
-    }
-    if (tiene_columna($conexion, 'ordenes', 'direccion') && $metodo === 'envio') {
-        $cols_ord[] = 'direccion';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        $params_ord[] = $direccion;
-    }
-
-    if (tiene_columna($conexion, 'ordenes', 'id_estado')) {
-        $cols_ord[] = 'id_estado';
-        $vals_ord[] = '?';
-        $types_ord .= 'i';
-        $params_ord[] = $id_estado_inicial;
-    } elseif (tiene_columna($conexion, 'ordenes', 'estado')) {
-        $cols_ord[] = 'estado';
-        $vals_ord[] = '?';
-        $types_ord .= 's';
-        $params_ord[] = 'En proceso';
-    }
-
-    $sql_ord = "INSERT INTO ordenes (" . implode(', ', $cols_ord) . ") VALUES (" . implode(', ', $vals_ord) . ")";
-    $stmt = $conexion->prepare($sql_ord);
-    $stmt->bind_param($types_ord, ...$params_ord);
-    $stmt->execute();
+    $stmt_ord = $conexion->prepare(
+        "INSERT INTO ordenes (codigo_seguimiento, id_cliente, id_sede_origen, tipo_entrega, direccion, total, id_estado) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    );
+    $stmt_ord->bind_param("siissdi", $codigo_seguimiento, $id_cliente_usuario, $id_sede_elegida, $metodo, $direccion, $total, $id_estado_inicial);
+    $stmt_ord->execute();
     $id_orden = $conexion->insert_id;
-    $stmt->close();
+    $stmt_ord->close();
+
     $stmt_det = $conexion->prepare(
         "INSERT INTO detalle_ordenes (id_orden, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)"
     );
@@ -256,6 +179,7 @@ try {
         }
         $stmt_upd->close();
     } else {
+
         foreach ($lineas as $l) {
             $restante = $l['cant'];
             foreach ($sedes_validas as $s_id) {
@@ -292,7 +216,7 @@ try {
 
 } catch (mysqli_sql_exception $e) {
     $conexion->rollback();
-    echo json_encode(["exito" => false, "error" => "No se pudo registrar la orden: " . $e->getMessage()]);
+    echo json_encode(["exito" => false, "error" => "No se pudo registrar la orden (restricción referencial activa): " . $e->getMessage()]);
 } catch (Exception $e) {
     $conexion->rollback();
     echo json_encode(["exito" => false, "error" => $e->getMessage()]);

@@ -4,22 +4,32 @@ include 'requerir_admin.php';
 include 'conexion.php';
 include 'stock_helpers.php';
 
-$datos = json_decode(file_get_contents("php://input"), true);
-$id = intval($datos['id'] ?? 0);
-$id_estado = intval($datos['id_estado'] ?? 0);
+$id_orden = intval($_POST['id_orden'] ?? 0);
+$id_estado = intval($_POST['id_estado'] ?? 0);
+$nombre_estado = trim($_POST['nombre_estado'] ?? '');
 
-if ($id > 0 && $id_estado > 0) {
-    // Si la tabla estado usa 4=en proceso, 5=completado, 6=cancelado (electrohogar.sql), mapeamos 2 -> 5
-    if ($id_estado === 2) {
-        $id_estado = obtener_id_estado_por_nombre($conexion, 'completad', 5);
-    }
-    $pk = tiene_columna($conexion, 'ordenes', 'id_orden') ? 'id_orden' : 'id';
-    $stmt = $conexion->prepare("UPDATE ordenes SET id_estado = ? WHERE `$pk` = ?");
-    $stmt->bind_param("ii", $id_estado, $id);
-    echo json_encode(["exito" => $stmt->execute()]);
+if ($id_orden <= 0) {
+    echo json_encode(["exito" => false, "error" => "ID de orden inválido."]);
+    exit;
+}
+
+if ($id_estado <= 0 && $nombre_estado !== '') {
+    $id_estado = obtener_id_estado_por_nombre($conexion, $nombre_estado, 1);
+}
+
+if ($id_estado <= 0) {
+    echo json_encode(["exito" => false, "error" => "Estado seleccionado inválido."]);
+    exit;
+}
+
+try {
+    $stmt = $conexion->prepare("UPDATE ordenes SET id_estado = ? WHERE id_orden = ?");
+    $stmt->bind_param("ii", $id_estado, $id_orden);
+    $ok = $stmt->execute();
     $stmt->close();
-} else {
-    echo json_encode(["exito" => false, "error" => "Datos inválidos."]);
+    echo json_encode(["exito" => $ok, "id_orden" => $id_orden, "id_estado" => $id_estado]);
+} catch (Throwable $e) {
+    echo json_encode(["exito" => false, "error" => "No se pudo actualizar el estado: " . $e->getMessage()]);
 }
 
 $conexion->close();

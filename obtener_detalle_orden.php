@@ -3,23 +3,24 @@ header('Content-Type: application/json; charset=utf-8');
 include 'requerir_admin.php';
 include 'conexion.php';
 
-$id_orden = isset($_GET['id_orden']) ? intval($_GET['id_orden']) : 0;
+$id_orden = intval($_GET['id_orden'] ?? 0);
 
-if ($id_orden > 0) {
-    $stmt = $conexion->prepare(
-        "SELECT d.cantidad, d.precio_unitario, p.nombre
-         FROM detalle_ordenes d
-         LEFT JOIN productos p ON d.id_producto = p.id
-         WHERE d.id_orden = ?"
-    );
-    $stmt->bind_param("i", $id_orden);
-    $stmt->execute();
-    $detalles = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
+$sql = "SELECT d.id_detalle, d.cantidad, d.precio_unitario, p.nombre, p.imagen
+        FROM detalle_ordenes d
+        LEFT JOIN productos p ON p.id = d.id_producto
+        WHERE d.id_orden = ?";
 
-    echo json_encode(["exito" => true, "detalles" => $detalles]);
-} else {
-    echo json_encode(["exito" => false, "error" => "ID de orden faltante."]);
+$stmt = $conexion->prepare($sql);
+$stmt->bind_param("i", $id_orden);
+$stmt->execute();
+$res = $stmt->get_result();
+
+$detalles = [];
+while ($r = $res->fetch_assoc()) {
+    $detalles[] = $r;
 }
-
+$stmt->close();
 $conexion->close();
+
+echo json_encode(["exito" => true, "detalles" => $detalles]);
+?>

@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElectroHogar - Panel de Administración de Base de Datos -</title>
+    <title>ElectroHogar - Panel de Base de Datos</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
     <style>
         .admin-db-layout {
             display: grid;
@@ -108,28 +108,18 @@
         .tabla-datos-m8 tr:hover {
             background: #f8f9fa;
         }
-        .btn-accion-mini {
-            padding: 4px 8px;
+        .badge-protegido {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 4px 10px;
             border-radius: 4px;
-            border: none;
-            cursor: pointer;
             font-size: 12px;
-            font-weight: 600;
-            margin-right: 4px;
-        }
-        .btn-accion-edit { background: #ffc107; color: #000; }
-        .btn-accion-del { background: #dc3545; color: #fff; }
-        .btn-nuevo-reg {
-            background: #28a745;
-            color: #fff;
-            border: none;
-            padding: 9px 16px;
-            border-radius: 6px;
             font-weight: bold;
-            cursor: pointer;
-            font-size: 13.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
- 
+
         .modal-db {
             display: none;
             position: fixed;
@@ -143,14 +133,12 @@
         .modal-db-contenido {
             background: #fff;
             border-radius: 8px;
-            max-width: 650px;
+            max-width: 440px;
             width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
             padding: 24px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
-    </style>
+</style>
 </head>
 <body>
 
@@ -164,21 +152,41 @@
             <ul>
                 <li><a href="index.html">Tienda</a></li>
                 <li><a href="panel_admin.html">Panel General</a></li>
-               
+                <li><a href="admin_db.html" class="activo" style="font-weight:bold; color:#007bff;">🗄️ Admin BD </a></li>
             </ul>
         </nav>
 
+        <div class="herramientas-usuario">
+            <button class="btn-icon" onclick="cerrarSesionDB()">🚪 Salir de BD</button>
+        </div>
     </header>
+
+    <div id="modal-login-m8" class="modal-db" style="display: none;">
+        <div class="modal-db-contenido" style="text-align: center;">
+            <h2 style="margin-top:0;">🔐 Acceso a Auditoría de Base de Datos </h2>
+            <form onsubmit="procesarLoginM8(event)">
+                <div class="form-group" style="text-align:left; margin-bottom:14px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:600;">Usuario:</label>
+                    <input type="text" id="m8-usuario" placeholder="admin" value="admin" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+                <div class="form-group" style="text-align:left; margin-bottom:18px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:600;">Contraseña:</label>
+                    <input type="password" id="m8-password" placeholder="admin" value="admin" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+                <div id="m8-error-login" style="display:none; color:#dc3545; font-size:13px; margin-bottom:12px; font-weight:bold;"></div>
+                <button type="submit" id="btn-login-m8" style="width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+                    Acceder a Base de Datos
                 </button>
-                
+                <div style="margin-top:14px;">
+                    <a href="panel_admin.html" style="font-size:13px; color:#555; text-decoration:none;">⬅️ Volver al Panel de Tienda</a>
+                </div>
             </form>
         </div>
     </div>
 
     <main>
         <div class="ofertas-header" style="padding: 20px 0 10px 0;">
-            <h2>🗄️ PANEL DE CONTROL TOTAL DE BASE DE DATOS </h2>
-            <p>Visualización de las tablas del proyecto.</p>
+            <h2>🗄️ PANEL DE BASE DE DATOS </h2>
         </div>
 
         <div class="admin-db-layout">
@@ -197,38 +205,22 @@
                     </div>
                     <div style="display:flex; gap:10px; align-items:center;">
                         <input type="search" id="buscador-tabla-m8" placeholder="🔍 Buscar en tabla..." onkeyup="filtrarTablaM8()" style="padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
-                        <button class="btn-nuevo-reg" onclick="abrirModalNuevoRegistro()">➕ Nuevo Registro</button>
                         <button onclick="cargarFilasTabla(tablaActual)" style="padding:8px 12px; border:1px solid #ccc; background:#f8f9fa; border-radius:4px; cursor:pointer;" title="Recargar datos">🔄</button>
                     </div>
                 </div>
 
                 <div id="contenedor-tabla-registros" style="overflow-x:auto; max-height:650px;">
-                    <p style="color:#666; padding:30px 0; text-align:center;">Selecciona una tabla a la izquierda para ver y editar sus registros.</p>
+                    <p style="color:#666; padding:30px 0; text-align:center;">Selecciona una tabla a la izquierda para ver sus registros.</p>
                 </div>
             </section>
         </div>
     </main>
-    <div id="modal-form-registro" class="modal-db">
-        <div class="modal-db-contenido">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">
-                <h3 id="modal-titulo-accion" style="margin:0;">Nuevo Registro</h3>
-                <button onclick="cerrarModalRegistro()" style="background:none; border:none; font-size:22px; cursor:pointer;">&times;</button>
-            </div>
-            <form id="form-registro-dinamico" onsubmit="guardarRegistroM8(event)">
-                <div id="campos-formulario-dinamico"></div>
-                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px; border-top:1px solid #eee; padding-top:15px;">
-                    <button type="button" onclick="cerrarModalRegistro()" style="padding:10px 18px; border:1px solid #ccc; background:#fff; border-radius:4px; cursor:pointer;">Cancelar</button>
-                    <button type="submit" id="btn-guardar-reg-m8" style="padding:10px 20px; background:#007bff; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Guardar Registro</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <footer>
-        <p>ElectroHogar - Panel de Administración de Base de Datos - </p>
+        <p>ElectroHogar - Base de Datos -</p>
     </footer>
 
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=6"></script>
     <script>
         let tablasDisponibles = [];
         let tablaActual = "";
@@ -236,9 +228,6 @@
         let pksActuales = [];
         let pkActual = "";
         let filasActuales = [];
-        let modoEdicion = false;
-        let pkEdicionValor = null;
-        let pksEdicionValores = {};
 
         document.addEventListener("DOMContentLoaded", () => {
             verificarAccesoM8();
@@ -249,7 +238,7 @@
             try {
                 return JSON.parse(texto);
             } catch (e) {
-                const textoLimpio = texto.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                const textoLimpio = texto.replace(/<[^>]*>?/gm, ' ').replace(/\\s+/g, ' ').trim();
                 throw new Error(textoLimpio.substring(0, 220) || "El servidor no respondió con un formato JSON válido.");
             }
         }
@@ -293,7 +282,7 @@
             .then(data => {
                 if (data.exito) {
                     document.getElementById("modal-login-m8").style.display = "none";
-                    mostrarToast("✅ Acceso autorizado como Administrador de Base de Datos (M8)");
+                    mostrarToast("✅ Acceso autorizado a Base de Datos (M8)");
                     verificarAccesoM8();
                 } else {
                     errBox.style.display = "block";
@@ -346,7 +335,7 @@
                     pksActuales = data.pks || (data.pk ? [data.pk] : []);
                     pkActual = data.pk || (pksActuales[0] || "");
                     filasActuales = data.filas;
-                    document.getElementById("subtitulo-tabla-actual").innerText = `Total registros visualizados: ${filasActuales.length} | Clave(s) primaria(s): ${pksActuales.join(', ')}`;
+                    document.getElementById("subtitulo-tabla-actual").innerText = `Total registros: ${filasActuales.length} | Clave(s) primaria(s): ${pksActuales.join(', ')} | Estado: Protegido contra modificación directa`;
                     renderizarTablaRegistros();
                 })
                 .catch(err => {
@@ -362,23 +351,16 @@
             }
 
             let ths = columnasActuales.map(c => `<th>${c.Field} ${pksActuales.includes(c.Field) ? '🔑' : ''}</th>`).join("");
-            ths += "<th style='width: 140px; text-align:center;'>Acciones</th>";
 
-            let trs = filasActuales.map((fila, idx) => {
+            let trs = filasActuales.map((fila) => {
                 let tds = columnasActuales.map(c => {
                     let val = fila[c.Field];
                     if (val === null) return "<td><em style='color:#aaa;'>null</em></td>";
                     let str = String(val);
-                    if (str.length > 50) str = str.substring(0, 48) + "...";
+                    if (str.length > 60) str = str.substring(0, 58) + "...";
                     return `<td>${escaparHTML(str)}</td>`;
                 }).join("");
 
-                tds += `
-                    <td style='text-align:center;'>
-                        <button class="btn-accion-mini btn-accion-edit" onclick="abrirModalEditarRegistro(${idx})" title="Modificar registro">✏️ Editar</button>
-                        <button class="btn-accion-mini btn-accion-del" onclick="eliminarRegistroM8(${idx})" title="Baja de registro">🗑️</button>
-                    </td>
-                `;
                 return `<tr>${tds}</tr>`;
             }).join("");
 
@@ -394,131 +376,6 @@
             const q = document.getElementById("buscador-tabla-m8").value;
             cargarFilasTabla(tablaActual, q);
         }
-
-        function abrirModalNuevoRegistro() {
-            modoEdicion = false;
-            pkEdicionValor = null;
-            pksEdicionValores = {};
-            document.getElementById("modal-titulo-accion").innerText = `➕ Nuevo Registro en [${tablaActual}]`;
-            generarCamposFormulario({});
-            document.getElementById("modal-form-registro").style.display = "flex";
-        }
-
-        function abrirModalEditarRegistro(idxFila) {
-            const fila = filasActuales[idxFila];
-            if (!fila) return;
-            modoEdicion = true;
-            pkEdicionValor = fila[pkActual];
-            pksEdicionValores = {};
-            pksActuales.forEach(k => {
-                pksEdicionValores[k] = fila[k];
-            });
-            const pksDesc = pksActuales.map(k => `${k}=${fila[k]}`).join(', ');
-            document.getElementById("modal-titulo-accion").innerText = `✏️ Editar Registro en [${tablaActual}] (${pksDesc})`;
-            generarCamposFormulario(fila);
-            document.getElementById("modal-form-registro").style.display = "flex";
-        }
-
-        function cerrarModalRegistro() {
-            document.getElementById("modal-form-registro").style.display = "none";
-        }
-
-        function generarCamposFormulario(datosFila) {
-            const cont = document.getElementById("campos-formulario-dinamico");
-            cont.innerHTML = columnasActuales.map(col => {
-                const nombreCampo = col.Field;
-                const esPK = pksActuales.includes(nombreCampo);
-                const esAI = (col.Extra === 'auto_increment');
-                const valActual = datosFila[nombreCampo] !== undefined && datosFila[nombreCampo] !== null ? datosFila[nombreCampo] : '';
-
-                let disabled = (esPK && modoEdicion) ? "readonly style='background:#e9ecef;'" : "";
-                let placeholder = esAI && !modoEdicion ? "Autogenerado (auto_increment)" : "";
-                let tipoInput = (nombreCampo === 'email') ? 'email' : (col.Type.includes('int') || col.Type.includes('decimal')) ? 'number' : 'text';
-                if (col.Type.includes('text') || nombreCampo === 'descripcion') {
-                    return `
-                        <div style="margin-bottom:12px;">
-                            <label style="display:block; font-weight:600; font-size:13px; margin-bottom:4px;">${nombreCampo} <small style="color:#777;">(${col.Type})</small></label>
-                            <textarea id="campo-m8-${nombreCampo}" rows="3" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" ${disabled}>${escaparHTML(valActual)}</textarea>
-                        </div>
-                    `;
-                }
-
-                return `
-                    <div style="margin-bottom:12px;">
-                        <label style="display:block; font-weight:600; font-size:13px; margin-bottom:4px;">${nombreCampo} <small style="color:#777;">(${col.Type})</small> ${esPK ? '🔑' : ''}</label>
-                        <input type="${tipoInput}" step="any" id="campo-m8-${nombreCampo}" value="${escaparHTML(valActual)}" placeholder="${placeholder}" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:13px;" ${disabled}>
-                    </div>
-                `;
-            }).join("");
-        }
-
-        function guardarRegistroM8(e) {
-            e.preventDefault();
-            const btn = document.getElementById("btn-guardar-reg-m8");
-            btn.disabled = true;
-            btn.innerText = "⏳ Guardando...";
-
-            const payload = {
-                _pk_val: pkEdicionValor,
-                _pks: pksEdicionValores
-            };
-            columnasActuales.forEach(c => {
-                const el = document.getElementById("campo-m8-" + c.Field);
-                if (el) {
-                    payload[c.Field] = el.value;
-                }
-            });
-
-            const accion = modoEdicion ? 'actualizar_registro' : 'crear_registro';
-            fetch(`api_db_admin.php?action=${accion}&tabla=${encodeURIComponent(tablaActual)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-            .then(parsearRespuestaJSON)
-            .then(data => {
-                btn.disabled = false;
-                btn.innerText = "Guardar Registro";
-                if (data.exito) {
-                    mostrarToast("✅ " + data.mensaje);
-                    cerrarModalRegistro();
-                    cargarFilasTabla(tablaActual);
-                } else {
-                    alert("❌ Error: " + data.error);
-                }
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btn.innerText = "Guardar Registro";
-                alert("Error al guardar: " + err.message);
-            });
-        }
-
-        function eliminarRegistroM8(idxFila) {
-            const fila = filasActuales[idxFila];
-            if (!fila) return;
-            const pks = {};
-            pksActuales.forEach(k => { pks[k] = fila[k]; });
-            const identif = Object.entries(pks).map(([k, v]) => `${k}='${v}'`).join(' y ');
-
-            if (confirm(`⚠️ ¿Confirmas eliminar permanentemente el registro con ${identif} de la tabla ${tablaActual}?`)) {
-                fetch(`api_db_admin.php?action=eliminar_registro&tabla=${encodeURIComponent(tablaActual)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ _pks: pks, _pk_val: fila[pkActual] })
-                })
-                .then(parsearRespuestaJSON)
-                .then(data => {
-                    if (data.exito) {
-                        mostrarToast("🗑️ " + data.mensaje);
-                        cargarFilasTabla(tablaActual);
-                    } else {
-                        alert("❌ Error: " + data.error);
-                    }
-                })
-                .catch(err => alert("Error al eliminar: " + err.message));
-            }
-        }
-    </script>
+</script>
 </body>
 </html>

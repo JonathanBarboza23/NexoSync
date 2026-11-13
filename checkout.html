@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElectroHogar - Pasarela de Pago</title>
+    <title>ElectroHogar - Pasarela de Pago y Checkout</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
-
     <header>
         <div class="logo" style="cursor:pointer;" onclick="window.location.href='index.html'">
             <img src="img/icono-electrohogar.png" alt="Logotipo ElectroHogar" class="logo-img">
@@ -18,62 +17,65 @@
 
         <nav>
             <ul>
-                <li><a href="index.html">Inicio</a></li>
-                <li><a href="cocina.html">Cocina</a></li>
-                <li><a href="lavado.html">Lavado</a></li>
-                <li><a href="tecnologia.html">Tecnología</a></li>
-                <li><a href="ofertas.html">Ofertas</a></li>
-                <li><a href="sucursales.html">Sucursales</a></li>
+                <li><a href="index.html" class="activo">Inicio</a></li>
+                <li><a href="cocina.html" class="">Cocina</a></li>
+                <li><a href="lavado.html" class="">Lavado</a></li>
+                <li><a href="tecnologia.html" class="">Tecnología</a></li>
+                <li><a href="ofertas.html" class="">Ofertas</a></li>
+                <li><a href="sucursales.html" class="">Sucursales</a></li>
             </ul>
         </nav>
 
         <div class="herramientas-usuario">
-            <input type="search" id="buscador-productos" placeholder="🔍 Buscar productos..." onkeyup="filtrarProductos()" autocomplete="off">
-            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="iniciarSesion()">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-login" title="Iniciar sesión" onclick="window.location.href='login.html'">👤 Iniciar Sesión</button>
+            <button class="btn-icon" id="btn-mis-compras" style="display: none; background:#007bff; color:#fff; font-weight:bold;" onclick="window.location.href='mis_compras.html'">📦 Mis Compras</button>
             <button class="btn-icon" id="btn-carrito" onclick="window.location.href='carrito.html'">🛒 Carrito (<span id="contador-carrito">0</span>)</button>
             <button class="btn-icon" id="btn-tema" title="Cambiar tema" onclick="cambiarTema()">🌙</button>
             <button id="btn-panel-admin" class="btn-icon" style="display: none;" onclick="window.location.href='panel_admin.html'">⚙️ Panel</button>
         </div>
     </header>
-
     <main>
         <div class="ofertas-header">
             <h2>🔒 FINALIZAR COMPRA Y PAGO</h2>
-            <p>Completa los datos de envío y selecciona tu medio de pago.</p>
+            <p>Selecciona tu modalidad de entrega y completa el pago de tu orden.</p>
         </div>
 
-        <section class="contenedor-checkout" id="seccion-checkout">
-            <form class="formulario-pago" onsubmit="procesarPagoFicticio(event)">
+        <section class="contenedor-carrito" id="seccion-checkout" style="grid-template-columns: 1fr 340px;">
+            <form class="formulario-pago" onsubmit="procesarPagoFicticio(event)" style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:25px;">
+                <div class="aviso-datos-bloqueados">
+                    🔒 <strong>Datos del titular verificados:</strong> Se completan automáticamente con tu cuenta de usuario registrada y están protegidos contra modificaciones.
+                </div>
+
+                <div class="fila-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label>Nombre y Apellido (Titular 🔒):</label>
+                        <input type="text" id="pago-nombre" class="input-bloqueado" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label>DNI (Titular 🔒):</label>
+                        <input type="text" id="pago-dni" class="input-bloqueado" readonly required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico (Titular 🔒):</label>
+                    <input type="email" id="pago-email" class="input-bloqueado" readonly required>
+                </div>
+
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+
                 <h3>1. Modalidad de Entrega</h3>
-                <div class="selector-metodo">
-                    <label class="opcion-metodo" id="label-opcion-retiro">
+                <div class="selector-metodo" style="display:flex; gap:15px; margin-bottom:15px;">
+                    <label class="opcion-metodo" style="flex:1; background:#f8f9fa; border:1px solid #ced4da; padding:12px; border-radius:6px; cursor:pointer;">
                         <input type="radio" name="tipo-entrega" value="retiro" checked onchange="alternarTipoEntrega()">
                         🏪 Retiro en Sucursal (Gratis)
                     </label>
-                    <label class="opcion-metodo" id="label-opcion-envio">
+                    <label class="opcion-metodo" style="flex:1; background:#f8f9fa; border:1px solid #ced4da; padding:12px; border-radius:6px; cursor:pointer;">
                         <input type="radio" name="tipo-entrega" value="envio" onchange="alternarTipoEntrega()">
-                        🚚 Envío a Domicilio
+                        🚚 Envío a Domicilio (Gratis)
                     </label>
                 </div>
 
                 <div id="aviso-stock-modalidad" style="display: none; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 6px; padding: 12px 14px; font-size: 13.5px; margin: 10px 0 14px 0; line-height: 1.5;">
-                </div>
-
-                <div class="aviso-datos-bloqueados">
-                    🔒 <strong>Datos del titular verificados:</strong> Se completan automáticamente con tu cuenta registrada y están bloqueados para evitar modificaciones a nombre de otra persona.
-                </div>
-
-                <div class="fila-inputs">
-                    <div class="form-group">
-                        <label>Nombre y Apellido (Titular registrado 🔒):</label>
-                        <input type="text" id="pago-nombre" class="input-bloqueado" placeholder="Ej: Juan Pérez" readonly required>
-                        <label style="margin-top:12px;">Correo Electrónico (Titular registrado 🔒):</label>
-                        <input type="email" id="pago-email" class="input-bloqueado" placeholder="Ej: correo@ejemplo.com" readonly required>
-                    </div>
-                    <div class="form-group">
-                        <label>DNI (Titular registrado 🔒):</label>
-                        <input type="text" id="pago-dni" class="input-bloqueado" placeholder="Ej: 35123456" readonly required>
-                    </div>
                 </div>
 
                 <div id="bloque-retiro-sucursal">
@@ -88,7 +90,7 @@
                 </div>
 
                 <div id="bloque-envio-domicilio" style="display: none;">
-                    <div class="fila-inputs">
+                    <div class="fila-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                         <div class="form-group">
                             <label>Dirección de entrega:</label>
                             <input type="text" id="pago-direccion" placeholder="Calle y Altura">
@@ -100,15 +102,15 @@
                     </div>
                 </div>
 
-                <hr class="separador-checkout">
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
 
-                <h3>2. Método de Pago</h3>
-                <div class="selector-metodo">
-                    <label class="opcion-metodo">
+                <h3>2. Medio de Pago</h3>
+                <div class="selector-metodo" style="display:flex; gap:15px; margin-bottom:15px;">
+                    <label class="opcion-metodo" style="flex:1; background:#f8f9fa; border:1px solid #ced4da; padding:12px; border-radius:6px; cursor:pointer;">
                         <input type="radio" name="metodo-pago" value="tarjeta" checked onchange="alternarMetodoPago()">
                         💳 Tarjeta de Crédito / Débito
                     </label>
-                    <label class="opcion-metodo">
+                    <label class="opcion-metodo" style="flex:1; background:#f8f9fa; border:1px solid #ced4da; padding:12px; border-radius:6px; cursor:pointer;">
                         <input type="radio" name="metodo-pago" value="transferencia" onchange="alternarMetodoPago()">
                         🏦 Transferencia / Mercado Pago
                     </label>
@@ -120,10 +122,10 @@
                         <input type="text" id="num-tarjeta" maxlength="19" placeholder="4509 1234 5678 9010" oninput="formatearTarjeta(this)" required>
                     </div>
 
-                    <div class="fila-inputs">
+                    <div class="fila-inputs" style="display:grid; grid-template-columns: 1.5fr 1fr; gap:15px;">
                         <div class="form-group">
-                            <label>Titular (como figura en la tarjeta):</label>
-                            <input type="text" id="titular-tarjeta" placeholder="NOMBRE APELLIDO" required>
+                            <label>Titular de la tarjeta:</label>
+                            <input type="text" id="titular-tarjeta" placeholder="NOMBRE Y APELLIDO" required>
                         </div>
                         <div class="form-group">
                             <label>Cuotas:</label>
@@ -136,7 +138,7 @@
                         </div>
                     </div>
 
-                    <div class="fila-inputs">
+                    <div class="fila-inputs" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                         <div class="form-group">
                             <label>Vencimiento (MM/AA):</label>
                             <input type="text" id="venc-tarjeta" maxlength="5" placeholder="08/29" oninput="formatearVencimientoTarjeta(this)" onblur="validarVencimientoEnInput(this)" required autocomplete="cc-exp">
@@ -144,54 +146,52 @@
                         </div>
                         <div class="form-group">
                             <label>Código de Seguridad (CVV):</label>
-                            <input type="password" id="cvv-tarjeta" maxlength="4" placeholder="123" required>
+                            <input type="password" id="cvv-tarjeta" maxlength="4" placeholder="123" required autocomplete="cc-csc">
                         </div>
                     </div>
                 </div>
 
                 <div id="bloque-transferencia" style="display: none;">
-                    <div class="caja-datos-bancarios">
-                        <p><strong>Banco / Billetera:</strong> ElectroHogar S.A.</p>
+                    <div style="background:#f1f3f5; padding:15px; border-radius:6px; font-size:13.5px; line-height:1.5;">
+                        <p><strong>Titular:</strong> ElectroHogar S.A.</p>
                         <p><strong>Alias:</strong> ELECTRO.HOGAR.TIENDA</p>
                         <p><strong>CBU:</strong> 0000003100012345678901</p>
-                        <p style="font-size: 13px; color: #555; margin-top: 8px;">* Al confirmar, se generará tu orden y código QR de retiro.</p>
+                        <small style="color:#666;">Al confirmar, se generará tu orden y comprobante con código QR de retiro.</small>
                     </div>
                 </div>
 
-                <div class="acciones-checkout" style="display: flex; gap: 12px; margin-top: 20px; align-items: center;">
+                <div style="display: flex; gap: 12px; margin-top: 25px; align-items: center;">
                     <button type="submit" id="btn-submit-pago" class="btn-comprar-grande" style="flex: 2; margin: 0;">Confirmar y Pagar</button>
-                    <button type="button" id="btn-cancelar-compra" class="btn-cancelar-checkout" onclick="cancelarCompra()" style="flex: 1; padding: 14px; background: #fff; color: #dc3545; border: 2px solid #dc3545; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 14px; transition: all 0.2s;">❌ Cancelar Compra</button>
+                    <button type="button" id="btn-cancelar-compra" class="btn-cancelar-checkout" onclick="cancelarCompra()" style="flex: 1; padding: 14px; background: #fff; color: #dc3545; border: 2px solid #dc3545; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px;">❌ Cancelar Compra</button>
                 </div>
             </form>
 
             <aside class="resumen-checkout">
                 <h3>Resumen de tu Pedido</h3>
                 <div id="lista-miniatura-checkout"></div>
-                <hr class="separador-checkout">
+                <hr style="margin:15px 0; border:0; border-top:1px solid #eee;">
                 <div class="linea-resumen">
-                    <span>Subtotal productos:</span>
+                    <span>Subtotal:</span>
                     <span id="checkout-subtotal">$0</span>
                 </div>
                 <div class="linea-resumen">
-                    <span>Costo de envío:</span>
+                    <span>Envío:</span>
                     <span style="color: #28a745; font-weight: bold;">GRATIS</span>
                 </div>
-                <div class="linea-resumen" id="linea-detalle-cuotas" style="font-size: 14px; color: #555;">
-                    <span>Plan de pago:</span>
+                <div class="linea-resumen" id="linea-detalle-cuotas" style="font-size: 13.5px; color: #666;">
+                    <span>Plan:</span>
                     <span id="checkout-texto-cuotas">1 pago</span>
                 </div>
-                <hr class="separador-checkout">
                 <div class="linea-resumen total-checkout">
-                    <span>TOTAL A PAGAR:</span>
+                    <span>TOTAL:</span>
                     <span id="checkout-total">$0</span>
                 </div>
             </aside>
         </section>
     </main>
-
     <footer>
-        <p>Todos los derechos reservados - Copyright 2026</p>
+        <p>Todos los derechos reservados - Copyright 2026 ElectroHogar S.A.</p>
     </footer>
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=7"></script>
 </body>
 </html>

@@ -28,7 +28,7 @@ if ($logueado && ($nombre === null || $email === null || $dni === null)) {
 
 echo json_encode([
     "logueado"   => $logueado,
-    "admin"      => ($_SESSION['rol'] ?? '') === 'admin',
+    "admin"      => ($_SESSION['rol'] ?? '') === 'admin' || !empty($_SESSION['db_admin_auth']),
     "usuario_id" => $_SESSION['usuario_id'] ?? null,
     "rol"        => $_SESSION['rol'] ?? null,
     "nombre"     => $nombre,

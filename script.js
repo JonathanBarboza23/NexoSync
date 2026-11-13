@@ -1,72 +1,3 @@
-
-function cancelarCompra() {
-    if (confirm("¿Estás seguro de que deseas cancelar la compra en curso? Volverás a tu carrito de compras sin perder tus productos.")) {
-        mostrarToast("Compra cancelada.");
-        setTimeout(() => {
-            window.location.href = "carrito.html";
-        }, 400);
-    }
-}
-
-let stockPorSedeGlobal = {};
-
-function verificarStockCheckout() {
-    let selectSuc = document.getElementById("sucursal-elegida");
-    let avisoStock = document.getElementById("aviso-stock-modalidad");
-    let radioRetiro = document.querySelector('input[name="tipo-entrega"][value="retiro"]');
-    let radioEnvio = document.querySelector('input[name="tipo-entrega"][value="envio"]');
-    if (!selectSuc || !avisoStock || carrito.length === 0) return;
-
-    let idSede = parseInt(selectSuc.value) || 1;
-    let nombreSede = selectSuc.options[selectSuc.selectedIndex] ? selectSuc.options[selectSuc.selectedIndex].text : "la sucursal seleccionada";
-
-    fetch('obtener_stock_sedes.php')
-        .then(r => r.json())
-        .then(data => {
-            if (data.exito && data.stock) {
-                stockPorSedeGlobal = data.stock;
-                let superaStockSede = false;
-                let prodAfectado = null;
-                let stockEnEstaSede = 0;
-                let stockTotalConsolidado = 0;
-
-                for (let item of carrito) {
-                    let stItem = stockPorSedeGlobal[item.id] || {};
-                    let cantSede = stItem[idSede] !== undefined ? Number(stItem[idSede]) : 0;
-                    let cantTotal = Object.values(stItem).reduce((acc, v) => acc + Number(v), 0);
-
-                    if (item.cantidad > cantSede) {
-                        superaStockSede = true;
-                        prodAfectado = item;
-                        stockEnEstaSede = cantSede;
-                        stockTotalConsolidado = cantTotal;
-                        break;
-                    }
-                }
-
-                if (superaStockSede) {
-                    avisoStock.style.display = "block";
-                    avisoStock.innerHTML = `
-                        <strong>ℹ️ Disponibilidad por sucursal:</strong><br>
-                        La cantidad de <em>${escaparHTML(prodAfectado.nombre)}</em> en tu pedido (${prodAfectado.cantidad} unid.) supera el stock disponible en ${escaparHTML(nombreSede)} (${stockEnEstaSede} unid.).<br>
-                        Para adquirir hasta el <strong>stock total consolidado (${stockTotalConsolidado} unid.)</strong>, la compra debe procesarse con la opción de <strong>🚚 Envío a Domicilio</strong>.
-                    `;
-
-                    if (radioRetiro && radioRetiro.checked) {
-                        mostrarToast("ℹ️ Supera el stock de la sucursal. Seleccionando Envío a Domicilio para comprar con stock total consolidado.");
-                        if (radioEnvio) {
-                            radioEnvio.checked = true;
-                            alternarTipoEntrega();
-                        }
-                    }
-                } else {
-                    avisoStock.style.display = "none";
-                }
-            }
-        })
-        .catch(() => {});
-}
-
 let carrito = [];
 let slideIndex = 0;
 let catalogoGlobal = [];
@@ -116,7 +47,6 @@ function cargarCarritoUsuario() {
         actualizarContador();
         return;
     }
-
     let guardado = [];
     try {
         guardado = JSON.parse(localStorage.getItem(obtenerClaveCarrito())) || [];
@@ -124,29 +54,6 @@ function cargarCarritoUsuario() {
         guardado = [];
     }
     carrito = guardado.filter(item => item && (item.id || item.nombre));
-    if (carrito.some(item => !item.id && item.nombre)) {
-        fetch('obtener_productos.php')
-            .then(r => r.json())
-            .then(prods => {
-                if (Array.isArray(prods)) {
-                    carrito.forEach(item => {
-                        if (!item.id && item.nombre) {
-                            let enc = prods.find(p => p.nombre && p.nombre.toLowerCase() === item.nombre.toLowerCase());
-                            if (enc) {
-                                item.id = Number(enc.id);
-                                if (!item.imagen) item.imagen = enc.imagen;
-                            }
-                        }
-                    });
-                    carrito = carrito.filter(item => item && item.id);
-                    localStorage.setItem(obtenerClaveCarrito(), JSON.stringify(carrito));
-                    actualizarContador();
-                    if (document.getElementById("contenedor-items")) renderizarCarrito();
-                }
-            })
-            .catch(() => {});
-    }
-
     actualizarContador();
     if (document.getElementById("contenedor-items")) {
         renderizarCarrito();
@@ -155,7 +62,6 @@ function cargarCarritoUsuario() {
 
 function sincronizarCarritoDB() {
     localStorage.setItem(obtenerClaveCarrito(), JSON.stringify(carrito));
-
     let usuarioActivo = obtenerUsuarioActivo();
     if (usuarioActivo && usuarioActivo.rol !== 'admin') {
         fetch('guardar_carrito.php', {
@@ -169,7 +75,6 @@ function sincronizarCarritoDB() {
 function aplicarTemaGuardado() {
     let temaGuardado = localStorage.getItem("temaElectroHogar");
     let botonTema = document.getElementById("btn-tema");
-    
     if (temaGuardado === "oscuro") {
         document.body.classList.add("dark-mode");
         if (botonTema) botonTema.innerText = "☀️";
@@ -179,9 +84,7 @@ function aplicarTemaGuardado() {
 function cambiarTema() {
     let cuerpo = document.body;
     let botonTema = document.getElementById("btn-tema");
-    
     cuerpo.classList.toggle("dark-mode");
-    
     if (cuerpo.classList.contains("dark-mode")) {
         localStorage.setItem("temaElectroHogar", "oscuro");
         if (botonTema) botonTema.innerText = "☀️";
@@ -202,7 +105,7 @@ function actualizarContador() {
 function agregarAlCarrito(id) {
     let usuarioActivo = obtenerUsuarioActivo();
     if (!usuarioActivo) {
-        mostrarToast("⚠️ Debes iniciar sesión para agregar productos al carrito.", true);
+        mostrarToast("⚠️ Debes iniciar sesión con tu cuenta de cliente para agregar productos al carrito.", true);
         localStorage.setItem("redireccionPostLogin", window.location.href);
         setTimeout(() => {
             window.location.href = "login.html";
@@ -235,54 +138,74 @@ function agregarAlCarrito(id) {
     mostrarToast(`🛒 ¡${prod.nombre} agregado al carrito!`);
 }
 
-function procesarRegistro(evento) {
-    evento.preventDefault();
-    let btn = document.getElementById("btn-submit-registro");
-    if (btn) { btn.disabled = true; btn.innerText = "Registrando..."; }
+function actualizarDisponibilidadRetiroSedes() {
+    const avisoEnvio = document.getElementById("aviso-envio-domicilio-sugerido");
+    const cajaSedes = document.getElementById("caja-disponibilidad-retiro-sedes");
+    if (!avisoEnvio) return;
 
-    let nombreVal = document.getElementById("reg-nombre").value.trim();
-    let dniVal = document.getElementById("reg-dni").value.trim();
-    let emailVal = document.getElementById("reg-email").value.trim();
-    let passVal = document.getElementById("reg-password").value.trim();
-    let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
-    if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
-        mostrarToast("❌ El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
-        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+    if (carrito.length === 0) {
+        if (cajaSedes) cajaSedes.style.display = "none";
+        avisoEnvio.style.display = "none";
         return;
     }
 
-    if (!/^\d{6,11}$/.test(dniVal)) {
-        mostrarToast("❌ El DNI debe contener solo números (6 a 11 dígitos).", true);
-        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
-        return;
-    }
+    fetch('obtener_stock_sedes.php')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.exito || !data.stock || !data.sedes) {
+                if (cajaSedes) cajaSedes.style.display = "none";
+                avisoEnvio.style.display = "none";
+                return;
+            }
 
-    let datos = {
-        nombre: nombreVal,
-        dni: dniVal,
-        email: emailVal,
-        password: passVal
-    };
+            const stockData = data.stock;
+            const sedes = data.sedes;
+            let algunaSedeDisponible = false;
 
-    fetch('registro_usuario.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.exito) {
-            mostrarToast("✅ ¡Cuenta creada con éxito! Ahora puedes iniciar sesión.");
-            setTimeout(() => { window.location.href = "login.html"; }, 900);
-        } else {
-            mostrarToast("❌ " + data.error, true);
-            if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
-        }
-    })
-    .catch(() => {
-        mostrarToast("No se pudo conectar con el servidor. Intenta de nuevo.", true);
-        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
-    });
+            carrito.forEach(item => {
+                const divItemStock = document.getElementById(`stock-sedes-item-${item.id}`);
+                if (divItemStock) {
+                    const stItem = stockData[item.id] || {};
+                    const badgesSedes = sedes.map(sede => {
+                        const disp = stItem[sede.id] !== undefined ? Number(stItem[sede.id]) : 0;
+                        const ok = disp >= item.cantidad;
+                        const bg = ok ? "#e8f5e9" : "#fff8e1";
+                        const bd = ok ? "#c8e6c9" : "#ffe082";
+                        const col = ok ? "#2e7d32" : "#e65100";
+                        const ico = ok ? "✅" : "⚠️";
+                        return `<span style="display:inline-block; background:${bg}; border:1px solid ${bd}; color:${col}; padding:3px 8px; border-radius:4px; font-size:11.5px; margin-right:6px; margin-top:4px;">${ico} ${escaparHTML(sede.nombre)}: <strong>${disp} disp.</strong> (pedís ${item.cantidad})</span>`;
+                    }).join("");
+                    divItemStock.innerHTML = `<div style="margin-top:6px;">${badgesSedes}</div>`;
+                }
+            });
+
+            sedes.forEach(sede => {
+                let alcanza = true;
+                carrito.forEach(item => {
+                    const stItem = stockData[item.id] || {};
+                    const dispEnSede = stItem[sede.id] !== undefined ? Number(stItem[sede.id]) : 0;
+                    if (item.cantidad > dispEnSede) {
+                        alcanza = false;
+                    }
+                });
+                if (alcanza) {
+                    algunaSedeDisponible = true;
+                }
+            });
+
+            if (cajaSedes) cajaSedes.style.display = "block";
+            avisoEnvio.style.display = "block";
+
+            if (!algunaSedeDisponible) {
+                avisoEnvio.innerHTML = "🚚 <strong>Aviso antes de ir a pagar:</strong> Ninguna sucursal cuenta con stock suficiente por sí sola para cubrir la cantidad solicitada en un único retiro. Podés continuar al pago y elegir <strong>Envío a Domicilio</strong> para abastecer tu compra con el stock consolidado de todas las sucursales.";
+            } else {
+                avisoEnvio.innerHTML = "🏪 <strong>Aviso antes de ir a pagar:</strong> Verificá arriba qué sucursales cuentan con stock disponible según la cantidad que querés comprar si preferís retirar en tienda, o elegí <strong>Envío a Domicilio</strong> en el siguiente paso.";
+            }
+        })
+        .catch(() => {
+            if (cajaSedes) cajaSedes.style.display = "none";
+            avisoEnvio.style.display = "none";
+        });
 }
 
 function renderizarCarrito() {
@@ -313,9 +236,10 @@ function renderizarCarrito() {
     }
 
     if (carrito.length === 0) {
-        contenedor.innerHTML = "<p>Tu carrito está vacío. Explora el catálogo para agregar productos.</p>";
+        contenedor.innerHTML = "<p style='padding:20px; font-size:15px;'>Tu carrito está vacío. Explora el catálogo para agregar productos.</p>";
         mostrarTotales(0);
         if (btnPagar) { btnPagar.disabled = true; btnPagar.innerText = "FINALIZAR COMPRA"; }
+        actualizarDisponibilidadRetiroSedes();
         return;
     }
 
@@ -340,7 +264,7 @@ function renderizarCarrito() {
             if (sinStock) {
                 mensajeError = stockReal === 0
                     ? `<p style="color: #e53935; font-weight: bold; font-size: 13px; margin-top: 5px;">⚠️ AGOTADO - Elimina este producto para continuar</p>`
-                    : `<p style="color: #e53935; font-weight: bold; font-size: 13px; margin-top: 5px;">⚠️ Solo quedan ${stockReal} unidades - Reduce la cantidad</p>`;
+                    : `<p style="color: #e53935; font-weight: bold; font-size: 13px; margin-top: 5px;">⚠️ Solo quedan ${stockReal} unidades en total - Reduce la cantidad</p>`;
             }
 
             if (!sinStock) {
@@ -357,6 +281,7 @@ function renderizarCarrito() {
                         <div>
                             <h4 style="margin:0;">${escaparHTML(item.nombre)}</h4>
                             <p style="margin:5px 0 0 0;">$${Number(item.precio).toLocaleString('es-AR')} x ${item.cantidad} = <strong>$${subtotalItem.toLocaleString('es-AR')}</strong></p>
+                            <div id="stock-sedes-item-${item.id}"></div>
                             ${mensajeError}
                         </div>
                     </div>
@@ -372,12 +297,12 @@ function renderizarCarrito() {
         });
 
         mostrarTotales(total);
-
         if (btnPagar) {
             btnPagar.disabled = carritoBloqueado;
             btnPagar.innerText = carritoBloqueado ? "Corrija su carrito" : "FINALIZAR COMPRA";
             btnPagar.style.backgroundColor = carritoBloqueado ? "#6c757d" : "";
         }
+        actualizarDisponibilidadRetiroSedes();
     })
     .catch(() => {
         contenedor.innerHTML = "<p style='color:red;'>No se pudo verificar el stock. Intenta recargar la página.</p>";
@@ -400,147 +325,11 @@ function eliminarItem(index) {
     renderizarCarrito();
 }
 
-function sincronizarSesionServidor() {
-    fetch('sesion.php')
-        .then(res => res.json())
-        .then(d => {
-            let local = obtenerUsuarioActivo();
-            if (local && !d.logueado) {
-                localStorage.removeItem("usuarioElectroHogar");
-                verificarEstadoSesionUI();
-            } else if (d.logueado && d.rol !== "admin") {
-                let actualizado = {
-                    id: d.usuario_id || (local ? local.id : null),
-                    nombre: d.nombre || (local ? local.nombre : ""),
-                    email: d.email || (local ? local.email : ""),
-                    dni: d.dni || (local ? local.dni : ""),
-                    rol: d.rol || (local ? local.rol : "cliente")
-                };
-                localStorage.setItem("usuarioElectroHogar", JSON.stringify(actualizado));
-                verificarEstadoSesionUI();
-                if (document.getElementById("seccion-checkout")) {
-                    bloquearDatosClienteCheckout(actualizado);
-                }
-            }
-        })
-        .catch(() => {});
-}
-
-function verificarEstadoSesion() {
-    sincronizarSesionServidor();
-    verificarEstadoSesionUI();
-}
-
-function verificarEstadoSesionUI() {
-    let usuarioActivo = obtenerUsuarioActivo();
-    let btnLogin = document.getElementById("btn-login");
-    let btnAdmin = document.getElementById("btn-panel-admin");
-    let btnCarrito = document.getElementById("btn-carrito");
-
-    if (usuarioActivo) {
-        let primerNombre = (usuarioActivo.nombre || "Usuario").split(" ")[0];
-        if (btnLogin) {
-            btnLogin.innerHTML = `🚪 Salir (${escaparHTML(primerNombre)})`;
-            btnLogin.onclick = cerrarSesion;
-        }
-        if (usuarioActivo.rol === 'admin') {
-            if (btnAdmin) btnAdmin.style.display = "inline-flex";
-            if (btnCarrito) btnCarrito.style.display = "none";
-        } else {
-            if (btnAdmin) btnAdmin.style.display = "none";
-            if (btnCarrito) btnCarrito.style.display = "inline-flex";
-        }
-    } else {
-        if (btnLogin) {
-            btnLogin.innerHTML = "👤 Iniciar Sesión";
-            btnLogin.onclick = iniciarSesion;
-        }
-        if (btnAdmin) btnAdmin.style.display = "none";
-        if (btnCarrito) btnCarrito.style.display = "inline-flex";
-    }
-}
-
-function iniciarSesion() {
-    window.location.href = "login.html";
-}
-
-function cerrarSesion() {
-    if (confirm("¿Deseas cerrar tu sesión actual?")) {
-        localStorage.removeItem(obtenerClaveCarrito());
-        localStorage.removeItem("usuarioElectroHogar");
-        fetch('logout.php').catch(() => {}).finally(() => window.location.reload());
-    }
-}
-
-function procesarLogin(evento) {
-    evento.preventDefault();
-    let btn = document.querySelector("button[type='submit']");
-    if(btn) { btn.disabled = true; btn.innerText = "⏳ Verificando..."; }
-
-    let emailInput = document.getElementById("email").value.trim();
-    let passInput = document.getElementById("password").value.trim();
-    let formData = new FormData();
-    formData.append("email", emailInput);
-    formData.append("password", passInput);
-
-    fetch('login.php', { method: 'POST', body: formData })
-        .then(res => res.json())
-        .then(datos => {
-            if (datos.exito) {
-                localStorage.setItem("usuarioElectroHogar", JSON.stringify({
-                    id: datos.usuario.id,
-                    nombre: datos.usuario.nombre,
-                    email: datos.usuario.email,
-                    rol: datos.usuario.rol,
-                    dni: datos.usuario.dni
-                }));
-
-                if (datos.usuario.carrito && datos.usuario.rol !== 'admin') {
-                    localStorage.setItem("carrito_" + datos.usuario.email, datos.usuario.carrito);
-                }
-
-                cargarCarritoUsuario();
-                mostrarToast(`¡Bienvenido/a, ${datos.usuario.nombre}!`);
-
-                let redireccionPendiente = localStorage.getItem("redireccionPostLogin");
-                setTimeout(() => {
-                    if (redireccionPendiente) {
-                        localStorage.removeItem("redireccionPostLogin");
-                        window.location.href = redireccionPendiente;
-                    } else if (datos.usuario.rol === 'admin') {
-                        window.location.href = "panel_admin.html";
-                    } else {
-                        window.location.href = "index.html";
-                    }
-                }, 600);
-            } else {
-                mostrarToast("❌ " + datos.error, true);
-                if(btn) { btn.disabled = false; btn.innerText = "Ingresar"; }
-            }
-        })
-        .catch(() => {
-            mostrarToast("Error de red al intentar iniciar sesión.", true);
-            if(btn) { btn.disabled = false; btn.innerText = "Ingresar"; }
-        });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    aplicarTemaGuardado();
-    verificarEstadoSesion();
-    cargarCarritoUsuario();
-    configurarBuscadorGlobal();
-    if (document.getElementsByClassName("slide").length > 0) mostrarSlides();
-    if (document.getElementById("seccion-checkout")) inicializarCheckout();
-    if (document.querySelector(".grilla-productos")) cargarProductos();
-    if (document.getElementById("detalle-producto-contenedor")) renderizarDetalleProducto();
-});
-
 function finalizarCompra() {
     if (carrito.length === 0) {
         mostrarToast("Tu carrito está vacío. Agrega productos antes de continuar.", true);
         return;
     }
-
     let usuarioActivo = obtenerUsuarioActivo();
     if (!usuarioActivo) {
         mostrarToast("⚠️ Inicia sesión como cliente para continuar al pago.", true);
@@ -552,8 +341,81 @@ function finalizarCompra() {
         mostrarToast("Las cuentas de administrador no realizan compras; usa una cuenta Cliente.", true);
         return;
     }
-
     window.location.href = "checkout.html";
+}
+
+function formatearVencimientoTarjeta(input) {
+    let v = input.value.replace(/\D/g, "");
+    if (v.length > 4) v = v.substring(0, 4);
+    if (v.length > 2) {
+        input.value = v.substring(0, 2) + "/" + v.substring(2);
+    } else {
+        input.value = v;
+    }
+}
+
+function validarVencimientoTarjeta(valor) {
+    if (!valor || !valor.trim()) {
+        return { valido: false, error: "Debes ingresar la fecha de vencimiento de la tarjeta." };
+    }
+    const partes = valor.trim().split("/");
+    if (partes.length !== 2 || partes[0].length !== 2 || partes[1].length !== 2) {
+        return { valido: false, error: "Formato de vencimiento inválido. Utiliza MM/AA (ej: 08/29)." };
+    }
+    const mes = parseInt(partes[0], 10);
+    const anio = 2000 + parseInt(partes[1], 10);
+
+    if (isNaN(mes) || mes < 1 || mes > 12) {
+        return { valido: false, error: "El mes de vencimiento debe estar entre 01 y 12." };
+    }
+    if (isNaN(anio)) {
+        return { valido: false, error: "El año de vencimiento no es válido." };
+    }
+
+    const ahora = new Date();
+    const anioActual = ahora.getFullYear();
+    const mesActual = ahora.getMonth() + 1;
+
+    if (anio < anioActual || (anio === anioActual && mes < mesActual)) {
+        return { valido: false, error: "❌ La tarjeta ingresada se encuentra vencida. Por favor, utiliza un medio de pago vigente." };
+    }
+    if (anio > anioActual + 20) {
+        return { valido: false, error: "❌ La fecha de vencimiento no es válida (año demasiado lejano)." };
+    }
+
+    return { valido: true, mes, anio };
+}
+
+function validarVencimientoEnInput(input) {
+    if (!input || !input.value.trim()) return;
+    let res = validarVencimientoTarjeta(input.value.trim());
+    let errEl = document.getElementById("error-venc-tarjeta");
+    if (!res.valido) {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.innerText = res.error;
+            errEl.style.display = "block";
+        }
+    } else {
+        input.style.borderColor = "#28a745";
+        if (errEl) {
+            errEl.style.display = "none";
+        }
+    }
+}
+
+function formatearTarjeta(input) {
+    let valor = input.value.replace(/\D/g, '').substring(0, 16);
+    input.value = valor.replace(/(\d{4})(?=\d)/g, '$1 ');
+}
+
+function cancelarCompra() {
+    if (confirm("¿Estás seguro de que deseas cancelar la compra en curso? Volverás a tu carrito de compras sin perder tus productos.")) {
+        mostrarToast("Compra cancelada.");
+        setTimeout(() => {
+            window.location.href = "carrito.html";
+        }, 400);
+    }
 }
 
 function bloquearDatosClienteCheckout(usuarioParam) {
@@ -661,72 +523,6 @@ function alternarMetodoPago() {
     }
 }
 
-function formatearTarjeta(input) {
-    let valor = input.value.replace(/\D/g, '').substring(0, 16);
-    input.value = valor.replace(/(\d{4})(?=\d)/g, '$1 ');
-}
-
-function formatearVencimientoTarjeta(input) {
-    let v = input.value.replace(/\D/g, "");
-    if (v.length > 4) v = v.substring(0, 4);
-    if (v.length > 2) {
-        input.value = v.substring(0, 2) + "/" + v.substring(2);
-    } else {
-        input.value = v;
-    }
-}
-
-function validarVencimientoTarjeta(valor) {
-    if (!valor || !valor.trim()) {
-        return { valido: false, error: "Debes ingresar la fecha de vencimiento de la tarjeta." };
-    }
-    const partes = valor.trim().split("/");
-    if (partes.length !== 2 || partes[0].length !== 2 || partes[1].length !== 2) {
-        return { valido: false, error: "Formato de vencimiento inválido. Utiliza MM/AA (ej: 08/29)." };
-    }
-    const mes = parseInt(partes[0], 10);
-    const anio = 2000 + parseInt(partes[1], 10);
-
-    if (isNaN(mes) || mes < 1 || mes > 12) {
-        return { valido: false, error: "El mes de vencimiento debe estar entre 01 y 12." };
-    }
-    if (isNaN(anio)) {
-        return { valido: false, error: "El año de vencimiento no es válido." };
-    }
-
-    const ahora = new Date();
-    const anioActual = ahora.getFullYear();
-    const mesActual = ahora.getMonth() + 1;
-
-    if (anio < anioActual || (anio === anioActual && mes < mesActual)) {
-        return { valido: false, error: "❌ La tarjeta ingresada se encuentra vencida. Por favor, utiliza un medio de pago vigente." };
-    }
-    if (anio > anioActual + 20) {
-        return { valido: false, error: "❌ La fecha de vencimiento no es válida (año demasiado lejano)." };
-    }
-
-    return { valido: true, mes, anio };
-}
-
-function validarVencimientoEnInput(input) {
-    if (!input || !input.value.trim()) return;
-    let res = validarVencimientoTarjeta(input.value.trim());
-    let errEl = document.getElementById("error-venc-tarjeta");
-    if (!res.valido) {
-        input.style.borderColor = "#dc3545";
-        if (errEl) {
-            errEl.innerText = res.error;
-            errEl.style.display = "block";
-        }
-    } else {
-        input.style.borderColor = "#28a745";
-        if (errEl) {
-            errEl.style.display = "none";
-        }
-    }
-}
-
-
 function alternarTipoEntrega() {
     let tipo = document.querySelector('input[name="tipo-entrega"]:checked').value;
     let bloqueRetiro = document.getElementById("bloque-retiro-sucursal");
@@ -750,6 +546,63 @@ function alternarTipoEntrega() {
     }
 }
 
+function verificarStockCheckout() {
+    let selectSuc = document.getElementById("sucursal-elegida");
+    let avisoStock = document.getElementById("aviso-stock-modalidad");
+    let radioRetiro = document.querySelector('input[name="tipo-entrega"][value="retiro"]');
+    let radioEnvio = document.querySelector('input[name="tipo-entrega"][value="envio"]');
+    if (!selectSuc || !avisoStock || carrito.length === 0) return;
+
+    let idSede = parseInt(selectSuc.value) || 1;
+    let nombreSede = selectSuc.options[selectSuc.selectedIndex] ? selectSuc.options[selectSuc.selectedIndex].text : "la sucursal seleccionada";
+
+    fetch('obtener_stock_sedes.php')
+        .then(r => r.json())
+        .then(data => {
+            if (data.exito && data.stock) {
+                let stockPorSedeGlobal = data.stock;
+                let superaStockSede = false;
+                let prodAfectado = null;
+                let stockEnEstaSede = 0;
+                let stockTotalConsolidado = 0;
+
+                for (let item of carrito) {
+                    let stItem = stockPorSedeGlobal[item.id] || {};
+                    let cantSede = stItem[idSede] !== undefined ? Number(stItem[idSede]) : 0;
+                    let cantTotal = Object.values(stItem).reduce((acc, v) => acc + Number(v), 0);
+
+                    if (item.cantidad > cantSede) {
+                        superaStockSede = true;
+                        prodAfectado = item;
+                        stockEnEstaSede = cantSede;
+                        stockTotalConsolidado = cantTotal;
+                        break;
+                    }
+                }
+
+                if (superaStockSede) {
+                    avisoStock.style.display = "block";
+                    avisoStock.innerHTML = `
+                        <strong>ℹ️ Disponibilidad por sucursal:</strong><br>
+                        La cantidad de <em>${escaparHTML(prodAfectado.nombre)}</em> en tu pedido (${prodAfectado.cantidad} unid.) supera el stock disponible en ${escaparHTML(nombreSede)} (${stockEnEstaSede} unid.).<br>
+                        Para adquirir hasta el <strong>stock total consolidado (${stockTotalConsolidado} unid.)</strong>, la compra debe procesarse con la opción de <strong>🚚 Envío a Domicilio</strong>.
+                    `;
+
+                    if (radioRetiro && radioRetiro.checked) {
+                        mostrarToast("ℹ️ Supera el stock de la sucursal. Seleccionando Envío a Domicilio para comprar con stock total consolidado.");
+                        if (radioEnvio) {
+                            radioEnvio.checked = true;
+                            alternarTipoEntrega();
+                        }
+                    }
+                } else {
+                    avisoStock.style.display = "none";
+                }
+            }
+        })
+        .catch(() => {});
+}
+
 function procesarPagoFicticio(evento) {
     evento.preventDefault();
 
@@ -768,17 +621,6 @@ function procesarPagoFicticio(evento) {
     let btn = document.getElementById("btn-submit-pago");
     btn.disabled = true;
     btn.innerText = "⏳ Procesando pago y guardando orden...";
-    bloquearDatosClienteCheckout(usuarioActivo);
-    let nombreCliente = (usuarioActivo.nombre || document.getElementById("pago-nombre").value).trim();
-    let emailCliente = (usuarioActivo.email || document.getElementById("pago-email").value).trim();
-    let dniCliente = (usuarioActivo.dni || document.getElementById("pago-dni").value).trim();
-    let tipoEntrega = document.querySelector('input[name="tipo-entrega"]:checked').value;
-    let selectSucursal = document.getElementById("sucursal-elegida");
-    let nombreSucursal = selectSucursal.options[selectSucursal.selectedIndex].text;
-    let direccionCliente = document.getElementById("pago-direccion").value;
-    let localidadCliente = document.getElementById("pago-localidad").value;
-    let detalleCuotas = document.getElementById("checkout-texto-cuotas").innerText;
-    let cuotas = parseInt(document.getElementById("cuotas-pago").value) || 1;
 
     function restaurarBoton() {
         btn.disabled = false;
@@ -827,6 +669,18 @@ function procesarPagoFicticio(evento) {
         }
     }
 
+    bloquearDatosClienteCheckout(usuarioActivo);
+    let nombreCliente = (usuarioActivo.nombre || document.getElementById("pago-nombre").value).trim();
+    let emailCliente = (usuarioActivo.email || document.getElementById("pago-email").value).trim();
+    let dniCliente = (usuarioActivo.dni || document.getElementById("pago-dni").value).trim();
+    let tipoEntrega = document.querySelector('input[name="tipo-entrega"]:checked').value;
+    let selectSucursal = document.getElementById("sucursal-elegida");
+    let nombreSucursal = selectSucursal.options[selectSucursal.selectedIndex].text;
+    let direccionCliente = document.getElementById("pago-direccion").value;
+    let localidadCliente = document.getElementById("pago-localidad").value;
+    let detalleCuotas = document.getElementById("checkout-texto-cuotas").innerText;
+    let cuotas = parseInt(document.getElementById("cuotas-pago").value) || 1;
+
     fetch('procesar_compra.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -873,29 +727,23 @@ function procesarPagoFicticio(evento) {
         mostrarToast(`🎉 ¡Orden ${codigoSeguimiento} registrada con éxito!`);
 
         document.getElementById("seccion-checkout").innerHTML = `
-            <div class="comprobante-exito">
+            <div class="comprobante-exito" style="background:#fff; border:1px solid #ddd; padding:30px; border-radius:8px; text-align:center;">
                 <h2 style="color: #28a745; margin-top: 0;">✅ ¡COMPRA CONFIRMADA!</h2>
                 <p>Presenta este código QR y tu DNI para retirar o recibir tu pedido.</p>
-
-                <hr class="separador-checkout">
-
-                <div style="text-align: left; line-height: 1.8;">
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                <div style="text-align: left; line-height: 1.8; max-width:500px; margin:0 auto;">
                     <p><strong>Código de Orden:</strong> ${escaparHTML(codigoSeguimiento)}</p>
                     <p><strong>Titular / Retira:</strong> ${escaparHTML(nombreCliente)} (DNI: ${escaparHTML(dniCliente)})</p>
                     ${detalleEntregaHTML}
                     <p><strong>Total Abonado:</strong> ${totalPagadoTexto} (${escaparHTML(detalleCuotas)})</p>
                 </div>
-
                 <div style="margin: 20px 0;">
                     <img src="${urlQR}" alt="Código QR de Retiro" width="180" height="180" style="border:1px solid #ddd; padding:8px; border-radius:8px; background:#fff;">
                     <p style="font-size:13px; color:#555; margin-top:8px;">Voucher verificado y descontado del inventario de la sucursal</p>
                 </div>
-
                 <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                    <button type="button" class="btn-volver" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
-                    <button type="button" class="btn-carrito-add" style="width: auto; padding: 12px 24px; background:#000; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold;" onclick="window.location.href='index.html'">
-                        Volver a la Tienda
-                    </button>
+                    <button type="button" onclick="window.print()" style="padding:10px 18px; border:1px solid #ccc; background:#fff; border-radius:4px; font-weight:bold; cursor:pointer;">🖨️ Imprimir / Guardar PDF</button>
+                    <button type="button" onclick="window.location.href='index.html'" style="padding:10px 20px; background:#000; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">Volver a la Tienda</button>
                 </div>
             </div>
         `;
@@ -907,21 +755,143 @@ function procesarPagoFicticio(evento) {
     });
 }
 
-function mostrarSlides() {
-    let slides = document.getElementsByClassName("slide");
-    if (slides.length === 0) return;
+function procesarRegistro(evento) {
+    evento.preventDefault();
+    let btn = document.getElementById("btn-submit-registro");
+    if (btn) { btn.disabled = true; btn.innerText = "Registrando..."; }
 
-    for (let i = 0; i < slides.length; i++) {
-        slides[i].style.display = "none";  
+    let nombreVal = document.getElementById("reg-nombre").value.trim();
+    let dniVal = document.getElementById("reg-dni").value.trim();
+    let emailVal = document.getElementById("reg-email").value.trim();
+    let passVal = document.getElementById("reg-password").value.trim();
+
+    let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
+    if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
+        mostrarToast("❌ El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
+        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+        return;
     }
-    
-    slideIndex++;
-    if (slideIndex > slides.length) {
-        slideIndex = 1;
-    }    
-    
-    slides[slideIndex - 1].style.display = "flex";  
-    setTimeout(mostrarSlides, 4500);
+    if (!/^\d{6,11}$/.test(dniVal)) {
+        mostrarToast("❌ El DNI debe contener solo números (6 a 11 dígitos).", true);
+        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+        return;
+    }
+
+    let datos = { nombre: nombreVal, dni: dniVal, email: emailVal, password: passVal };
+
+    fetch('registro_usuario.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.exito) {
+            mostrarToast("✅ ¡Cuenta creada con éxito! Ahora puedes iniciar sesión.");
+            setTimeout(() => { window.location.href = "login.html"; }, 900);
+        } else {
+            mostrarToast("❌ " + data.error, true);
+            if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+        }
+    })
+    .catch(() => {
+        mostrarToast("No se pudo conectar con el servidor. Intenta de nuevo.", true);
+        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+    });
+}
+
+function procesarLogin(evento) {
+    evento.preventDefault();
+    let btn = document.querySelector("button[type='submit']");
+    if (btn) { btn.disabled = true; btn.innerText = "⏳ Verificando..."; }
+
+    let emailInput = document.getElementById("email").value.trim();
+    let passInput = document.getElementById("password").value.trim();
+    let formData = new FormData();
+    formData.append("email", emailInput);
+    formData.append("password", passInput);
+
+    fetch('login.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(datos => {
+            if (datos.exito) {
+                localStorage.setItem("usuarioElectroHogar", JSON.stringify({
+                    id: datos.usuario.id,
+                    nombre: datos.usuario.nombre,
+                    email: datos.usuario.email,
+                    rol: datos.usuario.rol,
+                    dni: datos.usuario.dni
+                }));
+
+                if (datos.usuario.carrito && datos.usuario.rol !== 'admin') {
+                    localStorage.setItem("carrito_" + datos.usuario.email, datos.usuario.carrito);
+                }
+
+                cargarCarritoUsuario();
+                mostrarToast(`¡Bienvenido/a, ${datos.usuario.nombre}!`);
+
+                let redireccionPendiente = localStorage.getItem("redireccionPostLogin");
+                setTimeout(() => {
+                    if (redireccionPendiente) {
+                        localStorage.removeItem("redireccionPostLogin");
+                        window.location.href = redireccionPendiente;
+                    } else if (datos.usuario.rol === 'admin') {
+                        window.location.href = "panel_admin.html";
+                    } else {
+                        window.location.href = "index.html";
+                    }
+                }, 600);
+            } else {
+                mostrarToast("❌ " + datos.error, true);
+                if (btn) { btn.disabled = false; btn.innerText = "Ingresar"; }
+            }
+        })
+        .catch(() => {
+            mostrarToast("Error de red al intentar iniciar sesión.", true);
+            if (btn) { btn.disabled = false; btn.innerText = "Ingresar"; }
+        });
+}
+
+function verificarEstadoSesionUI() {
+    let usuarioActivo = obtenerUsuarioActivo();
+    let btnLogin = document.getElementById("btn-login");
+    let btnAdmin = document.getElementById("btn-panel-admin");
+    let btnCarrito = document.getElementById("btn-carrito");
+    let btnMisCompras = document.getElementById("btn-mis-compras");
+
+    if (usuarioActivo) {
+        let primerNombre = (usuarioActivo.nombre || "Usuario").split(" ")[0];
+        if (btnLogin) {
+            btnLogin.innerHTML = `🚪 Salir (${escaparHTML(primerNombre)})`;
+            btnLogin.onclick = cerrarSesion;
+        }
+        if (usuarioActivo.rol === 'admin') {
+            if (btnAdmin) btnAdmin.style.display = "inline-flex";
+            if (btnCarrito) btnCarrito.style.display = "none";
+            if (btnMisCompras) btnMisCompras.style.display = "none";
+        } else {
+            if (btnAdmin) btnAdmin.style.display = "none";
+            if (btnCarrito) btnCarrito.style.display = "inline-flex";
+
+            if (btnMisCompras) btnMisCompras.style.display = "inline-flex";
+        }
+    } else {
+        if (btnLogin) {
+            btnLogin.innerHTML = "👤 Iniciar Sesión";
+            btnLogin.onclick = () => window.location.href = 'login.html';
+        }
+        if (btnAdmin) btnAdmin.style.display = "none";
+        if (btnCarrito) btnCarrito.style.display = "inline-flex";
+        if (btnMisCompras) btnMisCompras.style.display = "none";
+    }
+}
+
+function cerrarSesion() {
+    if (confirm("¿Deseas cerrar tu sesión actual?")) {
+        localStorage.removeItem(obtenerClaveCarrito());
+        localStorage.removeItem("usuarioElectroHogar");
+        fetch('logout.php').catch(() => {}).finally(() => window.location.reload());
+    }
 }
 
 function cargarProductos() {
@@ -932,22 +902,9 @@ function cargarProductos() {
     fetch('obtener_productos.php?categoria=' + encodeURIComponent(categoriaAttr))
         .then(respuesta => respuesta.json())
         .then(listaProductos => {
-            let esPaginaOfertas = window.location.pathname.includes("ofertas.html") || categoriaAttr === "ofertas";
-
-            if (esPaginaOfertas) {
-                listaProductos = listaProductos.filter(prod => (parseFloat(prod.precio_anterior) || 0) > 0 || Number(prod.en_oferta) === 1);
-            }
-            let categoriaPagina = contenedor.getAttribute("data-categoria");
-            if (!esPaginaOfertas && categoriaPagina && categoriaPagina !== "todos") {
-                listaProductos = listaProductos.filter(prod =>
-                    prod.categoria && prod.categoria.toLowerCase() === categoriaPagina.toLowerCase()
-                );
-            }
-
             productosCargados = listaProductos;
-
             if (listaProductos.length === 0) {
-                contenedor.innerHTML = "<p style='text-align:center; width:100%; font-size: 18px; grid-column: 1 / -1; padding: 30px;'>No hay productos disponibles en esta categoría.</p>";
+                contenedor.innerHTML = "<p style='text-align:center; width:100%; font-size: 16px; grid-column: 1 / -1; padding: 30px;'>No hay productos disponibles en esta categoría.</p>";
                 return;
             }
 
@@ -961,32 +918,27 @@ function cargarProductos() {
                 let htmlPrecios = "";
                 if (precioViejo > 0) {
                     htmlPrecios = `
-                        <p class="precio-viejo" style="text-decoration: line-through; color: #999; font-size: 14px; margin: 0;">$${precioViejo.toLocaleString('es-AR')}</p>
-                        <p class="precio" style="color: #e53935; font-size: 22px; font-weight: bold; margin: 5px 0;">$${precioActual.toLocaleString('es-AR')}</p>
+                        <p class="precio-viejo">$${precioViejo.toLocaleString('es-AR')}</p>
+                        <p class="precio" style="color: #e53935;">$${precioActual.toLocaleString('es-AR')}</p>
                     `;
                 } else {
                     htmlPrecios = `
-                        <p class="precio" style="font-size: 20px; font-weight: bold; margin: 5px 0;">$${precioActual.toLocaleString('es-AR')}</p>
+                        <p class="precio">$${precioActual.toLocaleString('es-AR')}</p>
                     `;
                 }
 
                 let htmlBoton = sinStock
-                    ? `<button type="button" class="btn-carrito-add" disabled style="width: 100%; padding: 10px; background: #999; color: #fff; border: none; border-radius: 4px; cursor: not-allowed; margin-top: 15px;">Sin stock</button>`
-                    : `<button type="button" class="btn-carrito-add" onclick="agregarAlCarrito(${prod.id})" style="width: 100%; padding: 10px; background: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px;">
-                            🛒 Añadir al Carrito
-                        </button>`;
+                    ? `<button type="button" class="btn-carrito-add" disabled style="background: #999; cursor: not-allowed;">Sin stock</button>`
+                    : `<button type="button" class="btn-carrito-add" onclick="agregarAlCarrito(${prod.id})">🛒 Añadir al Carrito</button>`;
 
                 html += `
                     <article class="producto">
                         <div>
                             <img src="${escaparHTML(prod.imagen)}" onerror="this.onerror=null;this.src='img/productos/placeholder.jpg';" alt="${escaparHTML(prod.nombre)}" onclick="window.location.href='producto.html?id=${prod.id}'">
-
-                            <h3 onclick="window.location.href='producto.html?id=${prod.id}'" style="font-size: 16px; margin: 10px 0; cursor: pointer;">${escaparHTML(prod.nombre)}</h3>
-
+                            <h3 onclick="window.location.href='producto.html?id=${prod.id}'">${escaparHTML(prod.nombre)}</h3>
                             ${htmlPrecios}
-                            <small class="stock-badge" style="color:#666; display:block; margin-top:4px;">Stock disponible: ${stockTotal} unid.</small>
+                            <small style="color:#666; display:block; margin-top:4px;">Stock disponible: ${stockTotal} unid.</small>
                         </div>
-
                         ${htmlBoton}
                     </article>
                 `;
@@ -995,7 +947,7 @@ function cargarProductos() {
         })
         .catch(error => {
             console.error(error);
-            contenedor.innerHTML = "<p style='text-align:center; width:100%; grid-column: 1 / -1; color: red;'>Hubo un problema al cargar los productos. Revisa tu conexión.</p>";
+            contenedor.innerHTML = "<p style='text-align:center; width:100%; grid-column: 1 / -1; color: red;'>Hubo un problema al cargar los productos.</p>";
         });
 }
 
@@ -1005,7 +957,6 @@ function renderizarDetalleProducto() {
 
     let parametros = new URLSearchParams(window.location.search);
     let idProducto = parametros.get("id");
-
     if (!idProducto) {
         contenedor.innerHTML = "<p style='text-align:center;'>No se seleccionó ningún producto.</p>";
         return;
@@ -1014,161 +965,108 @@ function renderizarDetalleProducto() {
     fetch(`obtener_producto.php?id=${encodeURIComponent(idProducto)}`)
         .then(respuesta => respuesta.json())
         .then(prod => {
-
             if (prod.error) {
-                contenedor.innerHTML = `<div style="grid-column:1/-1; text-align: center; padding: 40px;"><p>El producto no existe.</p><button class="btn-volver" onclick="window.location.href='index.html'">Volver</button></div>`;
+                contenedor.innerHTML = `<p style='text-align:center;'>El producto no existe.</p>`;
                 return;
             }
-
             productosCargados = [prod];
-
-            let htmlImagen = prod.imagen ? `<img src="${escaparHTML(prod.imagen)}" onerror="this.onerror=null;this.src='img/productos/placeholder.jpg';" alt="${escaparHTML(prod.nombre)}">` : `<div>[ Sin imagen ]</div>`;
 
             let precioFinal = Number(prod.precio) || 0;
             let precioViejo = Number(prod.precio_anterior) || 0;
             let stockTotal = prod.stock_total !== undefined ? Number(prod.stock_total) : 0;
             let sinStock = stockTotal <= 0;
-            let htmlPrecioViejo = precioViejo > 0
-                ? `<p style="text-decoration: line-through; color: #999; margin: 5px 0 0 0;">$${precioViejo.toLocaleString('es-AR')}</p>`
-                : "";
-            let descripcion = prod.descripcion ? escaparHTML(prod.descripcion) : "Sin descripción disponible.";
-            let catTexto = (prod.categoria || "GENERAL").toUpperCase();
 
             contenedor.innerHTML = `
-                <div class="detalle-imagen-caja">
-                    ${htmlImagen}
-                </div>
-                <div class="detalle-info-caja">
-                    <span style="background: #000; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; display: inline-block; width: fit-content;">Garantía Oficial • ${escaparHTML(catTexto)}</span>
-                    <h2>${escaparHTML(prod.nombre)}</h2>
-                    <p class="detalle-descripcion">${descripcion}</p>
-                    ${htmlPrecioViejo}
-                    <p class="detalle-precio" style="margin: 12px 0;">$${precioFinal.toLocaleString('es-AR')}</p>
-                    ${Array.isArray(prod.stock_sedes) && prod.stock_sedes.length > 0 ? `
-                        <div class="caja-stock-sedes">
-                            <strong>📍 Disponibilidad por sucursal (Total: ${stockTotal} unid.):</strong>
-                            <ul style="list-style: none; padding: 0; margin: 8px 0 0 0;">
-                                ${prod.stock_sedes.map(s => `<li style="margin: 4px 0;">• ${escaparHTML(s.nombre)}: <strong>${s.cantidad > 0 ? s.cantidad + ' unid.' : 'Sin stock'}</strong></li>`).join('')}
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px; align-items:start; background:#fff; padding:30px; border-radius:8px; border:1px solid #eee;">
+                    <div>
+                        <img src="${escaparHTML(prod.imagen)}" onerror="this.onerror=null;this.src='img/productos/placeholder.jpg';" style="width:100%; max-height:420px; object-fit:contain; border-radius:8px; background:#fafafa;">
+                    </div>
+                    <div>
+                        <span style="background:#000; color:#fff; font-size:12px; font-weight:bold; padding:4px 8px; border-radius:4px; text-transform:uppercase;">${escaparHTML(prod.categoria)}</span>
+                        <h2 style="font-size:24px; margin:15px 0 10px 0;">${escaparHTML(prod.nombre)}</h2>
+                        <p style="color:#666; font-size:14.5px; line-height:1.5;">${escaparHTML(prod.descripcion)}</p>
+                        ${precioViejo > 0 ? `<p style="text-decoration:line-through; color:#888; margin:10px 0 0 0;">$${precioViejo.toLocaleString('es-AR')}</p>` : ''}
+                        <p style="font-size:28px; font-weight:bold; color:#111; margin:5px 0 15px 0;">$${precioFinal.toLocaleString('es-AR')}</p>
+
+                        <div style="background:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; padding:15px; margin-bottom:20px;">
+                            <strong>📍 Stock disponible por sucursal (Total: ${stockTotal} unid.):</strong>
+                            <ul style="list-style:none; padding:0; margin:8px 0 0 0;">
+                                ${Array.isArray(prod.stock_sedes) ? prod.stock_sedes.map(s => `<li style="margin:4px 0; font-size:13.5px;">• ${escaparHTML(s.nombre)}: <strong>${s.cantidad > 0 ? s.cantidad + ' unid.' : 'Sin stock'}</strong></li>`).join('') : ''}
                             </ul>
                         </div>
-                    ` : ''}
-                    ${sinStock
-                        ? `<button type="button" class="btn-comprar-grande" disabled style="background: #999; border-color: #999; cursor: not-allowed;">Sin stock</button>`
-                        : `<button type="button" class="btn-comprar-grande" onclick="agregarAlCarrito(${prod.id})">
-                        🛒 Añadir al Carrito
-                    </button>`}
+
+                        ${sinStock ? `<button type="button" class="btn-comprar-grande" disabled style="background:#999; cursor:not-allowed;">Sin stock</button>`
+                                   : `<button type="button" class="btn-comprar-grande" onclick="agregarAlCarrito(${prod.id})">🛒 Añadir al Carrito</button>`}
+                    </div>
                 </div>
             `;
         })
-        .catch(error => {
-            console.error(error);
-            contenedor.innerHTML = "<p>Error de conexión al cargar los detalles.</p>";
-        });
+        .catch(err => console.error(err));
 }
 
-function configurarBuscadorGlobal() {
-    let input = document.getElementById("buscador-productos");
-    if (!input) return;
-    let contenedorResultados = document.getElementById("lista-resultados-busqueda");
-    if (!contenedorResultados) {
-        contenedorResultados = document.createElement("div");
-        contenedorResultados.id = "lista-resultados-busqueda";
-        contenedorResultados.style.position = "absolute";
-        contenedorResultados.style.top = "100%";
-        contenedorResultados.style.left = "0";
-        contenedorResultados.style.background = "#fff";
-        contenedorResultados.style.width = "280px";
-        contenedorResultados.style.maxHeight = "350px";
-        contenedorResultados.style.overflowY = "auto";
-        contenedorResultados.style.boxShadow = "0px 6px 12px rgba(0,0,0,0.15)";
-        contenedorResultados.style.zIndex = "9999";
-        contenedorResultados.style.display = "none";
-        contenedorResultados.style.borderRadius = "0 0 8px 8px";
-        contenedorResultados.style.border = "1px solid #ddd";
-        contenedorResultados.style.borderTop = "none";
-        input.parentNode.style.position = "relative";
-        input.parentNode.insertBefore(contenedorResultados, input.nextSibling);
-    }
-    fetch('obtener_productos.php')
-        .then(res => res.json())
-        .then(data => {
-            if (Array.isArray(data)) {
-                catalogoGlobal = data.map(p => ({
-                    nombre: p.nombre,
-                    categoria: (p.categoria || "General").toUpperCase(),
-                    url: `producto.html?id=${p.id}`
-                }));
-            }
-        })
-        .catch(err => console.error("Error al iniciar buscador:", err));
+let carruselTimer = null;
 
-    document.addEventListener("click", (e) => {
-        if (e.target !== input && !contenedorResultados.contains(e.target)) {
-            contenedorResultados.style.display = "none";
-        }
-    });
-
-    input.addEventListener("keydown", (evento) => {
-        if (evento.key === "Enter") {
-            let filtro = input.value.toLowerCase().trim();
-            if (filtro === "") return;
-            
-            let coincidencia = catalogoGlobal.find(p => 
-                p.nombre.toLowerCase().includes(filtro) || 
-                p.categoria.toLowerCase().includes(filtro)
-            );
-            
-            if (coincidencia) {
-                window.location.href = coincidencia.url;
-            } else {
-                mostrarToast("No encontramos productos que coincidan con tu búsqueda.", true);
-            }
-        }
-    });
-}
-
-function filtrarProductos() {
-    let input = document.getElementById("buscador-productos");
-    let contenedorResultados = document.getElementById("lista-resultados-busqueda");
-    if (!input || !contenedorResultados) return;
-
-    let filtro = input.value.toLowerCase().trim();
-    contenedorResultados.innerHTML = "";
-
-    if (filtro.length < 2) {
-        contenedorResultados.style.display = "none";
-        return;
-    }
-
-    let coincidencias = catalogoGlobal.filter(p => 
-        p.nombre.toLowerCase().includes(filtro) || 
-        p.categoria.toLowerCase().includes(filtro)
-    );
-
-    if (coincidencias.length > 0) {
-        coincidencias.forEach(item => {
-            let opcion = document.createElement("div");
-            opcion.style.padding = "10px 14px";
-            opcion.style.cursor = "pointer";
-            opcion.style.borderBottom = "1px solid #eee";
-            opcion.style.display = "flex";
-            opcion.style.justifyContent = "space-between";
-            opcion.style.alignItems = "center";
-            
-            opcion.innerHTML = `
-                <span style="font-weight: 600; color: #222; font-size: 13px;">🔍 ${escaparHTML(item.nombre)}</span>
-                <span style="font-size: 10px; background: #000; color: #fff; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">${escaparHTML(item.categoria)}</span>
-            `;
-
-            opcion.onmouseover = () => opcion.style.background = "#f0f4f8";
-            opcion.onmouseout = () => opcion.style.background = "#fff";
-            opcion.onclick = () => window.location.href = item.url;
-            
-            contenedorResultados.appendChild(opcion);
-        });
-        contenedorResultados.style.display = "block";
-    } else {
-        contenedorResultados.innerHTML = `<div style="padding: 14px; color: #777; text-align: center; font-size: 13px; cursor: default;">Sin resultados para "${escaparHTML(filtro)}"</div>`;
-        contenedorResultados.style.display = "block";
+function inicializarCarrusel() {
+    slideIndex = 1;
+    mostrarSlide(slideIndex);
+    iniciarAutoCarrusel();
+    const contenedor = document.getElementById("carrusel-banner") || document.querySelector(".carrusel-contenedor");
+    if (contenedor) {
+        contenedor.addEventListener("mouseenter", detenerAutoCarrusel);
+        contenedor.addEventListener("mouseleave", iniciarAutoCarrusel);
     }
 }
+
+function iniciarAutoCarrusel() {
+    detenerAutoCarrusel();
+    carruselTimer = setInterval(() => {
+        cambiarSlide(1);
+    }, 4500);
+}
+
+function detenerAutoCarrusel() {
+    if (carruselTimer) {
+        clearInterval(carruselTimer);
+        carruselTimer = null;
+    }
+}
+
+function cambiarSlide(n) {
+    mostrarSlide(slideIndex += n);
+    iniciarAutoCarrusel();
+}
+
+function irASlide(n) {
+    mostrarSlide(slideIndex = n);
+    iniciarAutoCarrusel();
+}
+
+function plusSlides(n) {
+    cambiarSlide(n);
+}
+
+function currentSlide(n) {
+    irASlide(n);
+}
+
+function mostrarSlide(n) {
+    const slides = document.querySelectorAll(".carrusel-slide, .slide");
+    const dots = document.querySelectorAll(".carrusel-dot, .dot");
+    if (slides.length === 0) return;
+    if (n > slides.length) slideIndex = 1;
+    if (n < 1) slideIndex = slides.length;
+    slides.forEach(s => s.style.display = "none");
+    dots.forEach(d => d.classList.remove("activo"));
+    if (slides[slideIndex - 1]) slides[slideIndex - 1].style.display = "block";
+    if (dots[slideIndex - 1]) dots[slideIndex - 1].classList.add("activo");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    aplicarTemaGuardado();
+    if (document.querySelector(".carrusel-slide") || document.querySelector(".slide")) inicializarCarrusel();
+    verificarEstadoSesionUI();
+    cargarCarritoUsuario();
+    if (document.getElementById("seccion-checkout")) inicializarCheckout();
+    if (document.querySelector(".grilla-productos")) cargarProductos();
+    if (document.getElementById("detalle-producto-contenedor")) renderizarDetalleProducto();
+});

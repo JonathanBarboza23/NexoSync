@@ -3,24 +3,19 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 include 'conexion.php';
 
-// El usuario sale de la sesión del servidor, nunca de lo que envía el navegador.
 if (!isset($_SESSION['usuario_id'])) {
     echo json_encode(["exito" => false, "error" => "No hay sesión iniciada."]);
     exit;
 }
 
 $datos = json_decode(file_get_contents("php://input"), true);
+$carritoJSON = $datos['carrito'] ?? '[]';
 
-if (isset($datos['carrito']) && is_string($datos['carrito'])) {
-    $id_usuario = (int)$_SESSION['usuario_id'];
-    $carrito = $datos['carrito'];
-
-    $stmt = $conexion->prepare("UPDATE usuarios SET carrito = ? WHERE id = ?");
-    $stmt->bind_param("si", $carrito, $id_usuario);
-    echo json_encode(["exito" => $stmt->execute()]);
-    $stmt->close();
-} else {
-    echo json_encode(["exito" => false, "error" => "Datos inválidos."]);
-}
-
+$stmt = $conexion->prepare("UPDATE usuarios SET carrito = ? WHERE id = ?");
+$stmt->bind_param("si", $carritoJSON, $_SESSION['usuario_id']);
+$ok = $stmt->execute();
+$stmt->close();
 $conexion->close();
+
+echo json_encode(["exito" => $ok]);
+?>
