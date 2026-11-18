@@ -410,20 +410,25 @@ function formatearTarjeta(input) {
 }
 
 function cancelarCompra() {
-    if (confirm("¿Estás seguro de que deseas cancelar la compra en curso? Volverás a tu carrito de compras sin perder tus productos.")) {
-        mostrarToast("Compra cancelada.");
-        setTimeout(() => {
-            window.location.href = "carrito.html";
-        }, 400);
-    }
+    mostrarToast("Compra cancelada.");
+    setTimeout(() => {
+        window.location.href = "carrito.html";
+    }, 400);
 }
 
 function bloquearDatosClienteCheckout(usuarioParam) {
     let usuarioActivo = usuarioParam || obtenerUsuarioActivo();
     if (!usuarioActivo || usuarioActivo.rol === 'admin') return;
 
+    let nombreBase = (usuarioActivo.nombre_pila || usuarioActivo.nombre || "").trim();
+    let apellidoBase = (usuarioActivo.apellido || "").trim();
+    let nombreCompletoTitular = nombreBase;
+    if (apellidoBase !== "" && !nombreBase.toLowerCase().endsWith(apellidoBase.toLowerCase())) {
+        nombreCompletoTitular = (nombreBase + " " + apellidoBase).trim();
+    }
+
     const camposBloqueados = [
-        { id: "pago-nombre", valor: usuarioActivo.nombre || "" },
+        { id: "pago-nombre", valor: nombreCompletoTitular },
         { id: "pago-email",  valor: usuarioActivo.email || "" },
         { id: "pago-dni",    valor: usuarioActivo.dni || "" }
     ];
@@ -444,7 +449,13 @@ function bloquearDatosClienteCheckout(usuarioParam) {
                 if (e && e.cancelable) e.preventDefault();
                 let u = obtenerUsuarioActivo();
                 if (u && u.rol !== 'admin') {
-                    input.value = (id === "pago-nombre") ? (u.nombre || "")
+                    let nB = (u.nombre_pila || u.nombre || "").trim();
+                    let aB = (u.apellido || "").trim();
+                    let nComp = nB;
+                    if (aB !== "" && !nB.toLowerCase().endsWith(aB.toLowerCase())) {
+                        nComp = (nB + " " + aB).trim();
+                    }
+                    input.value = (id === "pago-nombre") ? nComp
                                 : (id === "pago-email")  ? (u.email || "")
                                 : (u.dni || "");
                 }
@@ -457,6 +468,8 @@ function bloquearDatosClienteCheckout(usuarioParam) {
     });
 }
 
+let sedesConStockCheckout = [];
+
 function inicializarCheckout() {
     let usuarioActivo = obtenerUsuarioActivo();
 
@@ -467,7 +480,34 @@ function inicializarCheckout() {
         return;
     }
 
+    if (!carrito || carrito.length === 0) {
+        try {
+            let guardado = JSON.parse(localStorage.getItem(obtenerClaveCarrito())) || [];
+            carrito = guardado.filter(item => item && (item.id || item.nombre));
+        } catch (e) {
+            carrito = [];
+        }
+    }
+
     bloquearDatosClienteCheckout(usuarioActivo);
+
+    fetch('sesion.php?accion=estado')
+        .then(r => r.json())
+        .then(d => {
+            if (d && d.logueado && d.usuario && d.usuario.rol !== 'admin') {
+                let actualizado = Object.assign({}, usuarioActivo, {
+                    nombre: d.usuario.nombre || usuarioActivo.nombre,
+                    nombre_pila: d.usuario.nombre_pila || "",
+                    apellido: d.usuario.apellido || "",
+                    email: d.usuario.email || usuarioActivo.email,
+                    dni: d.usuario.dni || usuarioActivo.dni
+                });
+                localStorage.setItem("usuarioElectroHogar", JSON.stringify(actualizado));
+                bloquearDatosClienteCheckout(actualizado);
+            }
+        })
+        .catch(() => {});
+
     actualizarResumenCheckout();
     verificarStockCheckout();
 }
@@ -524,25 +564,26 @@ function alternarMetodoPago() {
 }
 
 function alternarTipoEntrega() {
-    let tipo = document.querySelector('input[name="tipo-entrega"]:checked').value;
+    let radioChecked = document.querySelector('input[name="tipo-entrega"]:checked');
+    let tipo = radioChecked ? radioChecked.value : "retiro";
     let bloqueRetiro = document.getElementById("bloque-retiro-sucursal");
     let bloqueEnvio = document.getElementById("bloque-envio-domicilio");
     let inputDir = document.getElementById("pago-direccion");
     let inputLoc = document.getElementById("pago-localidad");
+    let selectSuc = document.getElementById("sucursal-elegida");
 
     if (tipo === "retiro") {
-        bloqueRetiro.style.display = "block";
-        bloqueEnvio.style.display = "none";
-        inputDir.required = false;
-        inputLoc.required = false;
-        verificarStockCheckout();
+        if (bloqueRetiro) bloqueRetiro.style.display = "block";
+        if (bloqueEnvio) bloqueEnvio.style.display = "none";
+        if (inputDir) inputDir.required = false;
+        if (inputLoc) inputLoc.required = false;
+        if (selectSuc) selectSuc.required = true;
     } else {
-        bloqueRetiro.style.display = "none";
-        bloqueEnvio.style.display = "block";
-        inputDir.required = true;
-        inputLoc.required = true;
-        let avisoStock = document.getElementById("aviso-stock-modalidad");
-        if (avisoStock) avisoStock.style.display = "none";
+        if (bloqueRetiro) bloqueRetiro.style.display = "none";
+        if (bloqueEnvio) bloqueEnvio.style.display = "block";
+        if (inputDir) inputDir.required = true;
+        if (inputLoc) inputLoc.required = true;
+        if (selectSuc) selectSuc.required = false;
     }
 }
 
@@ -551,52 +592,107 @@ function verificarStockCheckout() {
     let avisoStock = document.getElementById("aviso-stock-modalidad");
     let radioRetiro = document.querySelector('input[name="tipo-entrega"][value="retiro"]');
     let radioEnvio = document.querySelector('input[name="tipo-entrega"][value="envio"]');
-    if (!selectSuc || !avisoStock || carrito.length === 0) return;
+    if (!selectSuc || !avisoStock) return;
 
-    let idSede = parseInt(selectSuc.value) || 1;
-    let nombreSede = selectSuc.options[selectSuc.selectedIndex] ? selectSuc.options[selectSuc.selectedIndex].text : "la sucursal seleccionada";
+    if (!carrito || carrito.length === 0) {
+        try {
+            let guardado = JSON.parse(localStorage.getItem(obtenerClaveCarrito())) || [];
+            carrito = guardado.filter(item => item && (item.id || item.nombre));
+        } catch (e) {}
+    }
+    if (!carrito || carrito.length === 0) return;
+
+    const etiquetasSedes = {
+        1: "📍 Sucursal Central - Av. Corrientes 1234 (CABA)",
+        2: "📍 Sucursal Zona Norte - Av. Pres. Perón 1500, San Miguel",
+        3: "📍 Sucursal Zona Sur - Av. Cabildo 2040, Quilmes"
+    };
+
+    let valorPrevio = parseInt(selectSuc.value) || 0;
 
     fetch('obtener_stock_sedes.php')
         .then(r => r.json())
         .then(data => {
-            if (data.exito && data.stock) {
-                let stockPorSedeGlobal = data.stock;
-                let superaStockSede = false;
-                let prodAfectado = null;
-                let stockEnEstaSede = 0;
-                let stockTotalConsolidado = 0;
+            if (!data.exito || !data.stock) return;
 
+            let stockPorSedeGlobal = data.stock;
+            let listaSedes = Array.isArray(data.sedes) && data.sedes.length > 0 ? data.sedes : [
+                { id: 1, nombre: "Sucursal Central (CABA)" },
+                { id: 2, nombre: "Sucursal Zona Norte (San Miguel)" },
+                { id: 3, nombre: "Sucursal Zona Sur (Quilmes)" }
+            ];
+
+            let sedesConStock = [];
+            let sedesSinStock = [];
+
+            listaSedes.forEach(sede => {
+                let sId = Number(sede.id);
+                let alcanzaEnSede = true;
                 for (let item of carrito) {
-                    let stItem = stockPorSedeGlobal[item.id] || {};
-                    let cantSede = stItem[idSede] !== undefined ? Number(stItem[idSede]) : 0;
-                    let cantTotal = Object.values(stItem).reduce((acc, v) => acc + Number(v), 0);
-
-                    if (item.cantidad > cantSede) {
-                        superaStockSede = true;
-                        prodAfectado = item;
-                        stockEnEstaSede = cantSede;
-                        stockTotalConsolidado = cantTotal;
+                    let stItem = stockPorSedeGlobal[item.id] || stockPorSedeGlobal[String(item.id)] || {};
+                    let rawCant = stItem[sId] !== undefined ? stItem[sId] : stItem[String(sId)];
+                    let cantSede = rawCant !== undefined ? Number(rawCant) : 0;
+                    if (Number(item.cantidad) > cantSede) {
+                        alcanzaEnSede = false;
                         break;
                     }
                 }
+                if (alcanzaEnSede) {
+                    sedesConStock.push(sede);
+                } else {
+                    sedesSinStock.push(sede);
+                }
+            });
 
-                if (superaStockSede) {
-                    avisoStock.style.display = "block";
-                    avisoStock.innerHTML = `
-                        <strong>ℹ️ Disponibilidad por sucursal:</strong><br>
-                        La cantidad de <em>${escaparHTML(prodAfectado.nombre)}</em> en tu pedido (${prodAfectado.cantidad} unid.) supera el stock disponible en ${escaparHTML(nombreSede)} (${stockEnEstaSede} unid.).<br>
-                        Para adquirir hasta el <strong>stock total consolidado (${stockTotalConsolidado} unid.)</strong>, la compra debe procesarse con la opción de <strong>🚚 Envío a Domicilio</strong>.
-                    `;
+            sedesConStockCheckout = sedesConStock;
 
-                    if (radioRetiro && radioRetiro.checked) {
-                        mostrarToast("ℹ️ Supera el stock de la sucursal. Seleccionando Envío a Domicilio para comprar con stock total consolidado.");
-                        if (radioEnvio) {
-                            radioEnvio.checked = true;
-                            alternarTipoEntrega();
-                        }
+            if (sedesConStock.length > 0) {
+                selectSuc.innerHTML = sedesConStock.map((sede, idx) => {
+                    let sId = Number(sede.id);
+                    let texto = etiquetasSedes[sId] || ("📍 " + sede.nombre);
+                    let esElegida = sedesConStock.some(s => Number(s.id) === valorPrevio) ? (sId === valorPrevio) : (idx === 0);
+                    return `<option value="${sId}" ${esElegida ? 'selected' : ''}>${escaparHTML(texto)}</option>`;
+                }).join("");
+
+                let idActivo = sedesConStock.some(s => Number(s.id) === valorPrevio) ? valorPrevio : Number(sedesConStock[0].id);
+                selectSuc.value = String(idActivo);
+
+                if (radioRetiro) {
+                    radioRetiro.disabled = false;
+                    let lblRetiro = radioRetiro.closest("label");
+                    if (lblRetiro) {
+                        lblRetiro.style.opacity = "1";
+                        lblRetiro.style.cursor = "pointer";
                     }
+                }
+
+                if (sedesSinStock.length > 0) {
+                    let nombresOcultas = sedesSinStock.map(s => `<strong>${escaparHTML(s.nombre)}</strong>`).join(", ");
+                    avisoStock.style.display = "block";
+                    avisoStock.innerHTML = `ℹ️ Se muestran únicamente las sucursales con stock disponible para tu compra. (${nombresOcultas} fue ocultada del selector por no contar con stock suficiente).`;
                 } else {
                     avisoStock.style.display = "none";
+                }
+            } else {
+                selectSuc.innerHTML = `<option value="" disabled selected>Sin sucursales con stock completo disponible</option>`;
+                avisoStock.style.display = "block";
+                avisoStock.innerHTML = `
+                    <strong>ℹ️ Sin disponibilidad para retiro en una única sucursal:</strong><br>
+                    Ninguna de las 3 sucursales cuenta por sí sola con el stock completo para las cantidades solicitadas. Tu compra se procesará mediante <strong>🚚 Envío a Domicilio</strong> utilizando el stock total consolidado.
+                `;
+
+                if (radioRetiro) {
+                    radioRetiro.checked = false;
+                    radioRetiro.disabled = true;
+                    let lblRetiro = radioRetiro.closest("label");
+                    if (lblRetiro) {
+                        lblRetiro.style.opacity = "0.55";
+                        lblRetiro.style.cursor = "not-allowed";
+                    }
+                }
+                if (radioEnvio) {
+                    radioEnvio.checked = true;
+                    alternarTipoEntrega();
                 }
             }
         })
@@ -670,12 +766,17 @@ function procesarPagoFicticio(evento) {
     }
 
     bloquearDatosClienteCheckout(usuarioActivo);
-    let nombreCliente = (usuarioActivo.nombre || document.getElementById("pago-nombre").value).trim();
+    let nombreCliente = (document.getElementById("pago-nombre").value || usuarioActivo.nombre || "").trim();
     let emailCliente = (usuarioActivo.email || document.getElementById("pago-email").value).trim();
     let dniCliente = (usuarioActivo.dni || document.getElementById("pago-dni").value).trim();
     let tipoEntrega = document.querySelector('input[name="tipo-entrega"]:checked').value;
     let selectSucursal = document.getElementById("sucursal-elegida");
-    let nombreSucursal = selectSucursal.options[selectSucursal.selectedIndex].text;
+    let idSedeEnviar = selectSucursal ? parseInt(selectSucursal.value) : 0;
+    if ((!idSedeEnviar || isNaN(idSedeEnviar)) && sedesConStockCheckout.length > 0) {
+        idSedeEnviar = Number(sedesConStockCheckout[0].id);
+    }
+    let optSeleccionada = selectSucursal && selectSucursal.selectedIndex >= 0 ? selectSucursal.options[selectSucursal.selectedIndex] : null;
+    let nombreSucursal = optSeleccionada ? optSeleccionada.text : "Sucursal ElectroHogar";
     let direccionCliente = document.getElementById("pago-direccion").value;
     let localidadCliente = document.getElementById("pago-localidad").value;
     let detalleCuotas = document.getElementById("checkout-texto-cuotas").innerText;
@@ -691,7 +792,7 @@ function procesarPagoFicticio(evento) {
             cuotas: cuotas,
             metodo_pago: metodoPago,
             vencimiento_tarjeta: vencTarjeta,
-            id_sede: parseInt(selectSucursal.value),
+            id_sede: idSedeEnviar || 1,
             metodo_envio: tipoEntrega,
             direccion: tipoEntrega === "envio" ? direccionCliente + ", " + localidadCliente : "",
             productos: carrito.map(i => ({ id: i.id, cantidad: i.cantidad }))
@@ -710,6 +811,9 @@ function procesarPagoFicticio(evento) {
         let totalPagadoTexto = "$" + Number(datos.total).toLocaleString('es-AR');
         let detalleEntregaHTML = "";
         let datosParaQR = "";
+        if (datos.nombre_sede && (!optSeleccionada || !selectSucursal.value)) {
+            nombreSucursal = datos.nombre_sede;
+        }
 
         if (tipoEntrega === "retiro") {
             detalleEntregaHTML = `<p><strong>Modalidad:</strong> ${escaparHTML(nombreSucursal)}</p>`;
@@ -761,13 +865,20 @@ function procesarRegistro(evento) {
     if (btn) { btn.disabled = true; btn.innerText = "Registrando..."; }
 
     let nombreVal = document.getElementById("reg-nombre").value.trim();
+    let inputApellido = document.getElementById("reg-apellido");
+    let apellidoVal = inputApellido ? inputApellido.value.trim() : "";
     let dniVal = document.getElementById("reg-dni").value.trim();
     let emailVal = document.getElementById("reg-email").value.trim();
     let passVal = document.getElementById("reg-password").value.trim();
 
     let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
     if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
-        mostrarToast("❌ El nombre y apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
+        mostrarToast("❌ El nombre solo puede contener letras, espacios, acentos y comillas simples (').", true);
+        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+        return;
+    }
+    if (!regexNombre.test(apellidoVal) || apellidoVal.length < 2) {
+        mostrarToast("❌ El apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
         if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
         return;
     }
@@ -777,7 +888,7 @@ function procesarRegistro(evento) {
         return;
     }
 
-    let datos = { nombre: nombreVal, dni: dniVal, email: emailVal, password: passVal };
+    let datos = { nombre: nombreVal, apellido: apellidoVal, dni: dniVal, email: emailVal, password: passVal };
 
     fetch('registro_usuario.php', {
         method: 'POST',
@@ -818,6 +929,8 @@ function procesarLogin(evento) {
                 localStorage.setItem("usuarioElectroHogar", JSON.stringify({
                     id: datos.usuario.id,
                     nombre: datos.usuario.nombre,
+                    nombre_pila: datos.usuario.nombre_pila || "",
+                    apellido: datos.usuario.apellido || "",
                     email: datos.usuario.email,
                     rol: datos.usuario.rol,
                     dni: datos.usuario.dni
@@ -887,11 +1000,9 @@ function verificarEstadoSesionUI() {
 }
 
 function cerrarSesion() {
-    if (confirm("¿Deseas cerrar tu sesión actual?")) {
-        localStorage.removeItem(obtenerClaveCarrito());
-        localStorage.removeItem("usuarioElectroHogar");
-        fetch('logout.php').catch(() => {}).finally(() => window.location.reload());
-    }
+    localStorage.removeItem(obtenerClaveCarrito());
+    localStorage.removeItem("usuarioElectroHogar");
+    fetch('logout.php').catch(() => {}).finally(() => window.location.reload());
 }
 
 function cargarProductos() {
@@ -1061,8 +1172,31 @@ function mostrarSlide(n) {
     if (dots[slideIndex - 1]) dots[slideIndex - 1].classList.add("activo");
 }
 
+function asegurarCamposRegistroSeparados() {
+    const inputNombre = document.getElementById("reg-nombre");
+    if (!inputNombre) return;
+
+    const grupoNombre = inputNombre.closest(".form-group-registro");
+    if (grupoNombre) {
+        const lbl = grupoNombre.querySelector("label");
+        if (lbl) lbl.textContent = "Nombre:";
+        inputNombre.placeholder = "Ej: Juan";
+    }
+
+    if (!document.getElementById("reg-apellido") && grupoNombre) {
+        const grupoApellido = document.createElement("div");
+        grupoApellido.className = "form-group-registro";
+        grupoApellido.innerHTML = `
+            <label for="reg-apellido">Apellido:</label>
+            <input type="text" id="reg-apellido" name="apellido" required placeholder="Ej: Pérez" pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s'\\-]+$" title="Solo letras, espacios, acentos y apóstrofes (')">
+        `;
+        grupoNombre.insertAdjacentElement("afterend", grupoApellido);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     aplicarTemaGuardado();
+    asegurarCamposRegistroSeparados();
     if (document.querySelector(".carrusel-slide") || document.querySelector(".slide")) inicializarCarrusel();
     verificarEstadoSesionUI();
     cargarCarritoUsuario();

@@ -34,6 +34,11 @@ function tiene_columna($conexion, $tabla, $columna) {
     }
 }
 
+// Alias: varios archivos (login, registro, sesion, compras) llaman a columna_existe().
+function columna_existe($conexion, $tabla, $columna) {
+    return tiene_columna($conexion, $tabla, $columna);
+}
+
 function pk_sedes($conexion) {
     $t_sedes = nombre_tabla_sedes($conexion);
     if (tiene_columna($conexion, $t_sedes, 'id_sede')) return 'id_sede';

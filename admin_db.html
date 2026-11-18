@@ -6,7 +6,7 @@
     <title>ElectroHogar - Panel de Base de Datos</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=11">
     <style>
         .admin-db-layout {
             display: grid;
@@ -157,9 +157,26 @@
         </nav>
 
         <div class="herramientas-usuario">
-            
+            <button class="btn-icon" onclick="cerrarSesionDB()">🚪 Salir de BD</button>
         </div>
     </header>
+
+    <div id="modal-login-m8" class="modal-db" style="display: none;">
+        <div class="modal-db-contenido" style="text-align: center;">
+            <h2 style="margin-top:0;">🔐 Acceso a Auditoría de Base de Datos </h2>
+            <form onsubmit="procesarLoginM8(event)">
+                <div class="form-group" style="text-align:left; margin-bottom:14px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:600;">Usuario:</label>
+                    <input type="text" id="m8-usuario" placeholder="admin" value="admin" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+                <div class="form-group" style="text-align:left; margin-bottom:18px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:600;">Contraseña:</label>
+                    <input type="password" id="m8-password" placeholder="admin" value="admin" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;">
+                </div>
+                <div id="m8-error-login" style="display:none; color:#dc3545; font-size:13px; margin-bottom:12px; font-weight:bold;"></div>
+                <button type="submit" id="btn-login-m8" style="width:100%; padding:12px; background:#000; color:#fff; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">
+                    Acceder a Base de Datos
+                </button>
                 <div style="margin-top:14px;">
                     <a href="panel_admin.html" style="font-size:13px; color:#555; text-decoration:none;">⬅️ Volver al Panel de Tienda</a>
                 </div>
@@ -203,7 +220,7 @@
         <p>ElectroHogar - Base de Datos -</p>
     </footer>
 
-    <script src="script.js?v=6"></script>
+    <script src="script.js?v=11"></script>
     <script>
         let tablasDisponibles = [];
         let tablaActual = "";

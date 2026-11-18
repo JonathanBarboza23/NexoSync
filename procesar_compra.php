@@ -26,13 +26,20 @@ $id_sede_pedida = intval($datos['id_sede'] ?? 0);
 $id_usuario = $_SESSION['usuario_id'] ?? null;
 
 if ($id_usuario) {
-    $stmt_u = $conexion->prepare("SELECT id, nombre, email, dni FROM usuarios WHERE id = ?");
+    $tiene_apellido = columna_existe($conexion, 'usuarios', 'apellido');
+    $sql_u = $tiene_apellido
+        ? "SELECT id, nombre, apellido, email, dni FROM usuarios WHERE id = ?"
+        : "SELECT id, nombre, '' AS apellido, email, dni FROM usuarios WHERE id = ?";
+    $stmt_u = $conexion->prepare($sql_u);
     $stmt_u->bind_param("i", $id_usuario);
     $stmt_u->execute();
     $u_db = $stmt_u->get_result()->fetch_assoc();
     $stmt_u->close();
     if ($u_db) {
-        if (!empty($u_db['nombre'])) $nombre = trim($u_db['nombre']);
+        $n_solo = trim($u_db['nombre'] ?? '');
+        $a_solo = trim($u_db['apellido'] ?? '');
+        $n_completo = trim($n_solo . ($a_solo !== '' ? ' ' . $a_solo : ''));
+        if ($n_completo !== '')      $nombre = $n_completo;
         if (!empty($u_db['email']))  $email  = trim($u_db['email']);
         if (!empty($u_db['dni']))    $dni    = trim($u_db['dni']);
     }
@@ -79,11 +86,10 @@ if ($metodo_pago === 'tarjeta' && $venc_tarjeta !== '') {
 }
 
 $sedes_validas = ids_sedes($conexion);
-if ($metodo === 'retiro') {
-    if (!in_array($id_sede_pedida, $sedes_validas, true)) {
-        echo json_encode(["exito" => false, "error" => "Sucursal de retiro inválida."]);
-        exit;
-    }
+$lista_sedes_info = listar_sedes($conexion);
+$mapa_nombres_sedes = [];
+foreach ($lista_sedes_info as $s_info) {
+    $mapa_nombres_sedes[(int)$s_info['id']] = $s_info['nombre'];
 }
 
 $t_stock = nombre_tabla_stock($conexion);
@@ -117,25 +123,52 @@ try {
 
     if ($metodo === 'retiro') {
         $stmt_stock = $conexion->prepare("SELECT cantidad FROM `$t_stock` WHERE id_producto = ? AND id_sede = ?");
-        foreach ($lineas as $l) {
-            $stmt_stock->bind_param("ii", $l['id'], $id_sede_pedida);
-            $stmt_stock->execute();
-            $st = $stmt_stock->get_result()->fetch_assoc();
-            $stock_sede_actual = $st ? (int)$st['cantidad'] : 0;
+        $sedes_aptas_retiro = [];
 
-            if ($stock_sede_actual < $l['cant']) {
-                $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
-                $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
-
-                if ($stock_total >= $l['cant']) {
-                    throw new Exception("La cantidad de '{$l['nombre']}' ({$l['cant']} unid.) supera el stock disponible en la sucursal seleccionada ({$stock_sede_actual} unid.). Puedes adquirirla con el stock total ({$stock_total} unid.) seleccionando Envío a Domicilio.");
-                } else {
-                    throw new Exception("No hay stock suficiente para '{$l['nombre']}' (disponible en todas las sedes: {$stock_total} unid.).");
+        foreach ($sedes_validas as $s_id_eval) {
+            $apta = true;
+            foreach ($lineas as $l) {
+                $stmt_stock->bind_param("ii", $l['id'], $s_id_eval);
+                $stmt_stock->execute();
+                $st = $stmt_stock->get_result()->fetch_assoc();
+                $disp_sede = $st ? (int)$st['cantidad'] : 0;
+                if ($disp_sede < $l['cant']) {
+                    $apta = false;
+                    break;
                 }
             }
+            if ($apta) {
+                $sedes_aptas_retiro[] = (int)$s_id_eval;
+            }
+        }
+
+        if (in_array($id_sede_pedida, $sedes_aptas_retiro, true)) {
+            $id_sede_elegida = $id_sede_pedida;
+        } elseif (!empty($sedes_aptas_retiro)) {
+            $id_sede_elegida = $sedes_aptas_retiro[0];
+        } else {
+            foreach ($lineas as $l) {
+                $stmt_stock->bind_param("ii", $l['id'], $id_sede_pedida);
+                $stmt_stock->execute();
+                $st = $stmt_stock->get_result()->fetch_assoc();
+                $stock_sede_actual = $st ? (int)$st['cantidad'] : 0;
+
+                if ($stock_sede_actual < $l['cant']) {
+                    $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
+                    $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
+                    $stmt_stock->close();
+
+                    if ($stock_total >= $l['cant']) {
+                        throw new Exception("Ninguna sucursal individual cuenta con {$l['cant']} unidades de '{$l['nombre']}'. Puedes adquirir la totalidad con el stock consolidado ({$stock_total} unid.) seleccionando Envío a Domicilio.");
+                    } else {
+                        throw new Exception("No hay stock suficiente para '{$l['nombre']}' (disponible en todas las sedes: {$stock_total} unid.).");
+                    }
+                }
+            }
+            $stmt_stock->close();
+            throw new Exception("No hay sucursales con stock disponible para retiro completo.");
         }
         $stmt_stock->close();
-        $id_sede_elegida = $id_sede_pedida;
 
     } else {
 
@@ -211,7 +244,8 @@ try {
         "id_orden" => $id_orden,
         "codigo_seguimiento" => $codigo_seguimiento,
         "total" => $total,
-        "id_sede" => $id_sede_elegida
+        "id_sede" => $id_sede_elegida,
+        "nombre_sede" => $mapa_nombres_sedes[(int)$id_sede_elegida] ?? "Sucursal ElectroHogar"
     ]);
 
 } catch (mysqli_sql_exception $e) {
