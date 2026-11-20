@@ -4,6 +4,15 @@ include 'requerir_admin.php';
 include 'conexion.php';
 include 'stock_helpers.php';
 
+if (!function_exists('columna_existe')) {
+    function columna_existe($conexion, $tabla, $columna) {
+        $t = $conexion->real_escape_string($tabla);
+        $c = $conexion->real_escape_string($columna);
+        $res = $conexion->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $res && $res->num_rows > 0;
+    }
+}
+
 $estados = [];
 $t_est = nombre_tabla_estado($conexion);
 if (tabla_existe($conexion, $t_est)) {

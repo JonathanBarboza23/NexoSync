@@ -3,6 +3,15 @@ header('Content-Type: application/json; charset=utf-8');
 include 'conexion.php';
 include 'stock_helpers.php';
 
+if (!function_exists('columna_existe')) {
+    function columna_existe($conexion, $tabla, $columna) {
+        $t = $conexion->real_escape_string($tabla);
+        $c = $conexion->real_escape_string($columna);
+        $res = $conexion->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $res && $res->num_rows > 0;
+    }
+}
+
 try {
     $raw = file_get_contents("php://input");
     $datos = json_decode($raw, true);
@@ -28,12 +37,12 @@ try {
     }
 
     if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/u", $nombre) || strlen($nombre) < 2) {
-        echo json_encode(["exito" => false, "error" => "El nombre solo puede contener letras, espacios, acentos y apóstrofes (')."]);
+        echo json_encode(["exito" => false, "error" => "Carácter inválido, por favor intente nuevamente."]);
         exit;
     }
 
     if (!preg_match("/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/u", $apellido) || strlen($apellido) < 2) {
-        echo json_encode(["exito" => false, "error" => "El apellido solo puede contener letras, espacios, acentos y apóstrofes (')."]);
+        echo json_encode(["exito" => false, "error" => "Carácter inválido, por favor intente nuevamente."]);
         exit;
     }
 

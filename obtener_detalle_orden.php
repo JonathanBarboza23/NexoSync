@@ -4,6 +4,15 @@ include 'requerir_admin.php';
 include 'conexion.php';
 include 'stock_helpers.php';
 
+if (!function_exists('columna_existe')) {
+    function columna_existe($conexion, $tabla, $columna) {
+        $t = $conexion->real_escape_string($tabla);
+        $c = $conexion->real_escape_string($columna);
+        $res = $conexion->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $res && $res->num_rows > 0;
+    }
+}
+
 $id_orden = intval($_GET['id_orden'] ?? 0);
 $periodo = trim($_GET['periodo'] ?? 'completo');
 $busqueda = trim($_GET['q'] ?? '');

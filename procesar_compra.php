@@ -4,6 +4,15 @@ header('Content-Type: application/json; charset=utf-8');
 include 'conexion.php';
 include 'stock_helpers.php';
 
+if (!function_exists('columna_existe')) {
+    function columna_existe($conexion, $tabla, $columna) {
+        $t = $conexion->real_escape_string($tabla);
+        $c = $conexion->real_escape_string($columna);
+        $res = $conexion->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $res && $res->num_rows > 0;
+    }
+}
+
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 asegurar_stock_inicial($conexion);
 
@@ -171,7 +180,6 @@ try {
         $stmt_stock->close();
 
     } else {
-
         foreach ($lineas as $l) {
             $res_tot = $conexion->query("SELECT COALESCE(SUM(cantidad), 0) AS tot FROM `$t_stock` WHERE id_producto = " . intval($l['id']));
             $stock_total = $res_tot ? (int)$res_tot->fetch_assoc()['tot'] : 0;
@@ -212,7 +220,6 @@ try {
         }
         $stmt_upd->close();
     } else {
-
         foreach ($lineas as $l) {
             $restante = $l['cant'];
             foreach ($sedes_validas as $s_id) {

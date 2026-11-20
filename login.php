@@ -4,6 +4,15 @@ header('Content-Type: application/json; charset=utf-8');
 include 'conexion.php';
 include 'stock_helpers.php';
 
+if (!function_exists('columna_existe')) {
+    function columna_existe($conexion, $tabla, $columna) {
+        $t = $conexion->real_escape_string($tabla);
+        $c = $conexion->real_escape_string($columna);
+        $res = $conexion->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+        return $res && $res->num_rows > 0;
+    }
+}
+
 try {
     $email = trim($_POST['email'] ?? '');
     $password = trim($_POST['password'] ?? '');

@@ -12,6 +12,14 @@ function escaparHTML(texto) {
         .replace(/'/g, '&#39;');
 }
 
+function normalizarTextoBusqueda(texto) {
+    return String(texto ?? '')
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+}
+
 function mostrarToast(mensaje, esError = false) {
     let cont = document.getElementById("toast-container");
     if (!cont) {
@@ -117,7 +125,7 @@ function agregarAlCarrito(id) {
         return;
     }
 
-    let prod = productosCargados.find(p => Number(p.id) === Number(id));
+    let prod = productosCargados.find(p => Number(p.id) === Number(id)) || catalogoGlobal.find(p => Number(p.id) === Number(id));
     if (!prod) return;
 
     let item = carrito.find(p => Number(p.id) === Number(id));
@@ -859,34 +867,177 @@ function procesarPagoFicticio(evento) {
     });
 }
 
+function obtenerElementoErrorRegistro(input, idError) {
+    let errEl = document.getElementById(idError);
+    if (!errEl && input && input.parentElement) {
+        errEl = document.createElement("small");
+        errEl.id = idError;
+        errEl.className = "error-campo-registro";
+        errEl.style.display = "none";
+        errEl.style.color = "#dc3545";
+        errEl.style.fontSize = "12.5px";
+        errEl.style.marginTop = "5px";
+        errEl.style.fontWeight = "600";
+        errEl.style.lineHeight = "1.35";
+        input.parentElement.appendChild(errEl);
+    }
+    return errEl;
+}
+
+function validarCampoTextoRegistro(input, idError, etiqueta, obligatorio = false) {
+    if (!input) return true;
+    const valor = input.value;
+    const valorTrim = valor.trim();
+    const errEl = obtenerElementoErrorRegistro(input, idError);
+    const regexCaracterInvalido = /[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/;
+
+    if (valor !== "" && regexCaracterInvalido.test(valor)) {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.textContent = `⚠️ Carácter inválido en ${etiqueta}. Por favor intente nuevamente.`;
+            errEl.style.display = "block";
+        }
+        return false;
+    }
+
+    if (obligatorio && valorTrim === "") {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.textContent = `⚠️ Debes ingresar tu ${etiqueta}.`;
+            errEl.style.display = "block";
+        }
+        return false;
+    }
+
+    if (valorTrim !== "" && valorTrim.length < 2) {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.textContent = `⚠️ El ${etiqueta} debe tener al menos 2 letras.`;
+            errEl.style.display = "block";
+        }
+        return false;
+    }
+
+    if (errEl) {
+        errEl.textContent = "";
+        errEl.style.display = "none";
+    }
+    input.style.borderColor = valorTrim.length >= 2 ? "#28a745" : "";
+    return true;
+}
+
+function validarCampoDniRegistro(input, obligatorio = false) {
+    if (!input) return true;
+    const valor = input.value;
+    const errEl = obtenerElementoErrorRegistro(input, "error-reg-dni");
+
+    if (valor !== "" && /\D/.test(valor)) {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.textContent = "⚠️ Carácter inválido en DNI. Solo se permiten números (sin letras, puntos ni espacios).";
+            errEl.style.display = "block";
+        }
+        return false;
+    }
+
+    const valorTrim = valor.trim();
+    if (obligatorio && valorTrim === "") {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.textContent = "⚠️ Debes ingresar tu DNI.";
+            errEl.style.display = "block";
+        }
+        return false;
+    }
+
+    if (valorTrim !== "" && (valorTrim.length < 6 || valorTrim.length > 11)) {
+        input.style.borderColor = "#dc3545";
+        if (errEl) {
+            errEl.textContent = "⚠️ El DNI debe tener entre 6 y 11 números.";
+            errEl.style.display = "block";
+        }
+        return false;
+    }
+
+    if (errEl) {
+        errEl.textContent = "";
+        errEl.style.display = "none";
+    }
+    input.style.borderColor = valorTrim.length >= 6 ? "#28a745" : "";
+    return true;
+}
+
+function inicializarValidacionRegistro() {
+    const inputNombre = document.getElementById("reg-nombre");
+    const inputApellido = document.getElementById("reg-apellido");
+    const inputDni = document.getElementById("reg-dni");
+
+    if (inputNombre && !inputNombre.dataset.validBound) {
+        inputNombre.addEventListener("input", () => validarCampoTextoRegistro(inputNombre, "error-reg-nombre", "nombre", false));
+        inputNombre.addEventListener("blur", () => validarCampoTextoRegistro(inputNombre, "error-reg-nombre", "nombre", false));
+        inputNombre.dataset.validBound = "1";
+    }
+
+    if (inputApellido && !inputApellido.dataset.validBound) {
+        inputApellido.addEventListener("input", () => validarCampoTextoRegistro(inputApellido, "error-reg-apellido", "apellido", false));
+        inputApellido.addEventListener("blur", () => validarCampoTextoRegistro(inputApellido, "error-reg-apellido", "apellido", false));
+        inputApellido.dataset.validBound = "1";
+    }
+
+    if (inputDni && !inputDni.dataset.validBound) {
+        inputDni.addEventListener("input", () => validarCampoDniRegistro(inputDni, false));
+        inputDni.addEventListener("blur", () => validarCampoDniRegistro(inputDni, false));
+        inputDni.dataset.validBound = "1";
+    }
+}
+
 function procesarRegistro(evento) {
     evento.preventDefault();
     let btn = document.getElementById("btn-submit-registro");
-    if (btn) { btn.disabled = true; btn.innerText = "Registrando..."; }
 
-    let nombreVal = document.getElementById("reg-nombre").value.trim();
+    let inputNombre = document.getElementById("reg-nombre");
     let inputApellido = document.getElementById("reg-apellido");
-    let apellidoVal = inputApellido ? inputApellido.value.trim() : "";
-    let dniVal = document.getElementById("reg-dni").value.trim();
-    let emailVal = document.getElementById("reg-email").value.trim();
-    let passVal = document.getElementById("reg-password").value.trim();
+    let inputDni = document.getElementById("reg-dni");
+    let inputEmail = document.getElementById("reg-email");
+    let inputPass = document.getElementById("reg-password");
 
-    let regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]+$/;
-    if (!regexNombre.test(nombreVal) || nombreVal.length < 2) {
-        mostrarToast("❌ El nombre solo puede contener letras, espacios, acentos y comillas simples (').", true);
-        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+    let nombreVal = inputNombre ? inputNombre.value.trim() : "";
+    let apellidoVal = inputApellido ? inputApellido.value.trim() : "";
+    let dniVal = inputDni ? inputDni.value.trim() : "";
+    let emailVal = inputEmail ? inputEmail.value.trim() : "";
+    let passVal = inputPass ? inputPass.value.trim() : "";
+
+    let nombreOk = validarCampoTextoRegistro(inputNombre, "error-reg-nombre", "nombre", true);
+    let apellidoOk = validarCampoTextoRegistro(inputApellido, "error-reg-apellido", "apellido", true);
+    let dniOk = validarCampoDniRegistro(inputDni, true);
+
+    if (!nombreOk) {
+        mostrarToast("❌ Carácter inválido en el nombre. Solo se permiten letras, espacios, acentos, apóstrofes (') y guiones (-).", true);
+        if (inputNombre) inputNombre.focus();
         return;
     }
-    if (!regexNombre.test(apellidoVal) || apellidoVal.length < 2) {
-        mostrarToast("❌ El apellido solo puede contener letras, espacios, acentos y comillas simples (').", true);
-        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+    if (!apellidoOk) {
+        mostrarToast("❌ Carácter inválido en el apellido. Solo se permiten letras, espacios, acentos, apóstrofes (') y guiones (-).", true);
+        if (inputApellido) inputApellido.focus();
         return;
     }
-    if (!/^\d{6,11}$/.test(dniVal)) {
-        mostrarToast("❌ El DNI debe contener solo números (6 a 11 dígitos).", true);
-        if (btn) { btn.disabled = false; btn.innerText = "Registrarme"; }
+    if (!dniOk) {
+        mostrarToast("❌ El DNI debe contener únicamente números (entre 6 y 11 dígitos).", true);
+        if (inputDni) inputDni.focus();
         return;
     }
+    if (!emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+        mostrarToast("❌ Ingresa un correo electrónico válido.", true);
+        if (inputEmail) inputEmail.focus();
+        return;
+    }
+    if (passVal.length < 4) {
+        mostrarToast("❌ La contraseña debe tener al menos 4 caracteres.", true);
+        if (inputPass) inputPass.focus();
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.innerText = "Registrando..."; }
 
     let datos = { nombre: nombreVal, apellido: apellidoVal, dni: dniVal, email: emailVal, password: passVal };
 
@@ -985,7 +1136,6 @@ function verificarEstadoSesionUI() {
         } else {
             if (btnAdmin) btnAdmin.style.display = "none";
             if (btnCarrito) btnCarrito.style.display = "inline-flex";
-
             if (btnMisCompras) btnMisCompras.style.display = "inline-flex";
         }
     } else {
@@ -1005,6 +1155,330 @@ function cerrarSesion() {
     fetch('logout.php').catch(() => {}).finally(() => window.location.reload());
 }
 
+function esPaginaPrincipal() {
+    const ruta = (window.location.pathname || "").toLowerCase();
+    return ruta.endsWith("/") || ruta.endsWith("/index.html") || ruta === "index.html";
+}
+
+function obtenerUrlCategoriaProducto(prod) {
+    const catNorm = normalizarTextoBusqueda(prod && prod.categoria ? prod.categoria : "");
+    const mapaCategorias = {
+        cocina: "cocina.html",
+        lavado: "lavado.html",
+        tecnologia: "tecnologia.html",
+        ofertas: "ofertas.html"
+    };
+    let pagina = mapaCategorias[catNorm];
+    if (!pagina) {
+        pagina = (Number(prod && prod.precio_anterior) > 0) ? "ofertas.html" : "index.html";
+    }
+    return prod && prod.id ? `${pagina}?producto=${encodeURIComponent(prod.id)}` : pagina;
+}
+
+function inyectarEstilosBuscadorDesplegable() {
+    if (document.getElementById("estilos-buscador-desplegable")) return;
+    const style = document.createElement("style");
+    style.id = "estilos-buscador-desplegable";
+    style.textContent = `
+        .buscador-wrapper { position: relative; display: inline-flex; align-items: center; }
+        .sugerencias-buscador {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            width: 320px;
+            max-width: 90vw;
+            max-height: 360px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.14);
+            z-index: 2000;
+            padding: 6px;
+        }
+        .sugerencias-buscador.visible { display: block; }
+        .sugerencia-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            text-align: left;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .sugerencia-item:last-child { border-bottom: none; }
+        .sugerencia-item:hover { background-color: #f1f5f9; }
+        .sugerencia-item img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 2px;
+            flex-shrink: 0;
+        }
+        .sugerencia-info { flex: 1; min-width: 0; }
+        .sugerencia-nombre {
+            font-size: 13px;
+            font-weight: 600;
+            color: #111827;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sugerencia-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 3px;
+            font-size: 11.5px;
+            color: #6c757d;
+        }
+        .sugerencia-cat {
+            background: #eef6ff;
+            color: #0056b3;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        .sugerencia-precio { font-weight: 700; color: #111827; }
+        .sugerencia-vacio { padding: 12px; text-align: center; font-size: 13px; color: #6c757d; }
+        body.dark-mode .sugerencias-buscador { background: #1e1e1e; border-color: #3a3a3a; }
+        body.dark-mode .sugerencia-item { border-bottom-color: #2d2d2d; }
+        body.dark-mode .sugerencia-item:hover { background-color: #2b2b2b; }
+        body.dark-mode .sugerencia-nombre, body.dark-mode .sugerencia-precio { color: #f8f9fa; }
+        body.dark-mode .sugerencia-cat { background: #1e3a5f; color: #93c5fd; }
+        @media (max-width: 768px) {
+            .buscador-wrapper { width: 100%; }
+            .sugerencias-buscador { width: 100%; max-width: 100%; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function ocultarSugerenciasBuscador() {
+    const lista = document.getElementById("sugerencias-buscador");
+    if (lista) lista.classList.remove("visible");
+}
+
+function mostrarSugerenciasBuscador(termino) {
+    const lista = document.getElementById("sugerencias-buscador");
+    if (!lista) return;
+
+    const texto = String(termino ?? "").trim();
+    const terminoNorm = normalizarTextoBusqueda(texto);
+    if (terminoNorm === "") {
+        lista.innerHTML = "";
+        lista.classList.remove("visible");
+        return;
+    }
+
+    const fuente = catalogoGlobal.length > 0 ? catalogoGlobal : productosCargados;
+    const coincidencias = fuente.filter(prod => normalizarTextoBusqueda(prod.nombre).includes(terminoNorm));
+
+    if (coincidencias.length === 0) {
+        lista.innerHTML = `<div class="sugerencia-vacio">No se encontraron productos para "<strong>${escaparHTML(texto)}</strong>".</div>`;
+        lista.classList.add("visible");
+        return;
+    }
+
+    lista.innerHTML = coincidencias.map(prod => {
+        const precio = Number(prod.precio) || 0;
+        const urlDestino = obtenerUrlCategoriaProducto(prod);
+        const categoriaLabel = prod.categoria ? prod.categoria : "General";
+        return `
+            <div class="sugerencia-item" data-url="${escaparHTML(urlDestino)}">
+                <img src="${escaparHTML(prod.imagen || 'img/productos/placeholder.jpg')}" onerror="this.onerror=null;this.src='img/productos/placeholder.jpg';" alt="">
+                <div class="sugerencia-info">
+                    <div class="sugerencia-nombre">${escaparHTML(prod.nombre)}</div>
+                    <div class="sugerencia-meta">
+                        <span class="sugerencia-cat">${escaparHTML(categoriaLabel)}</span>
+                        <span class="sugerencia-precio">$${precio.toLocaleString('es-AR')}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+
+    lista.querySelectorAll(".sugerencia-item").forEach(itemEl => {
+        itemEl.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            const destino = itemEl.getAttribute("data-url");
+            if (destino) window.location.href = destino;
+        });
+    });
+
+    lista.classList.add("visible");
+}
+
+function inicializarBuscadorProductos() {
+    const contenedor = document.querySelector(".grilla-productos");
+    if (!contenedor) return;
+
+    inyectarEstilosBuscadorDesplegable();
+
+    const herramientas = document.querySelector(".herramientas-usuario");
+    let inputBuscador = document.getElementById("buscador-productos");
+
+    if (!inputBuscador && herramientas) {
+        inputBuscador = document.createElement("input");
+        inputBuscador.type = "search";
+        inputBuscador.id = "buscador-productos";
+        inputBuscador.placeholder = "🔍 Buscar producto...";
+        inputBuscador.autocomplete = "off";
+        inputBuscador.setAttribute("aria-label", "Buscar productos por nombre");
+        herramientas.insertBefore(inputBuscador, herramientas.firstChild);
+    }
+
+    if (inputBuscador) {
+        let wrapper = inputBuscador.closest(".buscador-wrapper");
+        if (!wrapper && inputBuscador.parentNode) {
+            wrapper = document.createElement("div");
+            wrapper.className = "buscador-wrapper";
+            inputBuscador.parentNode.insertBefore(wrapper, inputBuscador);
+            wrapper.appendChild(inputBuscador);
+        }
+
+        if (wrapper && !document.getElementById("sugerencias-buscador")) {
+            const listaSug = document.createElement("div");
+            listaSug.id = "sugerencias-buscador";
+            listaSug.className = "sugerencias-buscador";
+            wrapper.appendChild(listaSug);
+        }
+
+        if (!inputBuscador.dataset.buscadorBound) {
+            inputBuscador.addEventListener("input", () => {
+                filtrarProductosPorNombre(inputBuscador.value);
+                mostrarSugerenciasBuscador(inputBuscador.value);
+            });
+            inputBuscador.addEventListener("search", () => {
+                filtrarProductosPorNombre(inputBuscador.value);
+                mostrarSugerenciasBuscador(inputBuscador.value);
+            });
+            inputBuscador.addEventListener("focus", () => {
+                if (inputBuscador.value.trim() !== "") {
+                    mostrarSugerenciasBuscador(inputBuscador.value);
+                }
+            });
+            inputBuscador.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    ocultarSugerenciasBuscador();
+                }
+            });
+            document.addEventListener("click", (e) => {
+                if (wrapper && !wrapper.contains(e.target)) {
+                    ocultarSugerenciasBuscador();
+                }
+            });
+            inputBuscador.dataset.buscadorBound = "1";
+        }
+    }
+
+    if (catalogoGlobal.length === 0) {
+        fetch('obtener_productos.php?categoria=todos')
+            .then(r => r.json())
+            .then(todos => {
+                if (Array.isArray(todos)) {
+                    catalogoGlobal = todos;
+                    const inp = document.getElementById("buscador-productos");
+                    if (inp && inp.value.trim() !== "") {
+                        mostrarSugerenciasBuscador(inp.value);
+                    }
+                }
+            })
+            .catch(() => {});
+    }
+}
+
+function limpiarBusquedaProductos() {
+    const inputBuscador = document.getElementById("buscador-productos");
+    if (inputBuscador) {
+        inputBuscador.value = "";
+        inputBuscador.focus();
+    }
+    ocultarSugerenciasBuscador();
+    filtrarProductosPorNombre("");
+}
+
+function filtrarProductosPorNombre(termino) {
+    const texto = String(termino ?? "").trim();
+    const terminoNorm = normalizarTextoBusqueda(texto);
+
+    if (terminoNorm === "") {
+        renderizarGrillaProductos(productosCargados, "");
+        return;
+    }
+
+    const baseBusqueda = (esPaginaPrincipal() && catalogoGlobal.length > 0) ? catalogoGlobal : productosCargados;
+    const filtrados = baseBusqueda.filter(prod => {
+        return normalizarTextoBusqueda(prod.nombre).includes(terminoNorm);
+    });
+
+    renderizarGrillaProductos(filtrados, texto);
+}
+
+function renderizarGrillaProductos(listaProductos, terminoBusqueda = "") {
+    let contenedor = document.querySelector(".grilla-productos");
+    if (!contenedor) return;
+
+    if (!Array.isArray(listaProductos) || listaProductos.length === 0) {
+        if (terminoBusqueda !== "") {
+            contenedor.innerHTML = `
+                <div style="text-align:center; width:100%; grid-column: 1 / -1; padding: 35px 20px; background:#fff; border:1px solid #e9ecef; border-radius:8px;">
+                    <p style="font-size:16px; margin:0 0 14px 0;">🔍 No se encontraron productos con el nombre "<strong>${escaparHTML(terminoBusqueda)}</strong>".</p>
+                    <button type="button" class="btn-carrito-add" style="width:auto; padding:10px 20px;" onclick="limpiarBusquedaProductos()">Ver todos los productos</button>
+                </div>
+            `;
+        } else {
+            contenedor.innerHTML = "<p style='text-align:center; width:100%; font-size: 16px; grid-column: 1 / -1; padding: 30px;'>No hay productos disponibles en esta categoría.</p>";
+        }
+        return;
+    }
+
+    let html = "";
+    listaProductos.forEach(prod => {
+        let precioActual = parseFloat(prod.precio) || 0;
+        let precioViejo = parseFloat(prod.precio_anterior) || 0;
+        let stockTotal = prod.stock_total !== undefined ? Number(prod.stock_total) : 0;
+        let sinStock = stockTotal <= 0;
+
+        let htmlPrecios = "";
+        if (precioViejo > 0) {
+            htmlPrecios = `
+                <p class="precio-viejo">$${precioViejo.toLocaleString('es-AR')}</p>
+                <p class="precio" style="color: #e53935;">$${precioActual.toLocaleString('es-AR')}</p>
+            `;
+        } else {
+            htmlPrecios = `
+                <p class="precio">$${precioActual.toLocaleString('es-AR')}</p>
+            `;
+        }
+
+        let htmlBoton = sinStock
+            ? `<button type="button" class="btn-carrito-add" disabled style="background: #999; cursor: not-allowed;">Sin stock</button>`
+            : `<button type="button" class="btn-carrito-add" onclick="agregarAlCarrito(${prod.id})">🛒 Añadir al Carrito</button>`;
+
+        html += `
+            <article class="producto" data-producto-id="${prod.id}">
+                <div>
+                    <img src="${escaparHTML(prod.imagen)}" onerror="this.onerror=null;this.src='img/productos/placeholder.jpg';" alt="${escaparHTML(prod.nombre)}" onclick="window.location.href='producto.html?id=${prod.id}'">
+                    <h3 onclick="window.location.href='producto.html?id=${prod.id}'">${escaparHTML(prod.nombre)}</h3>
+                    ${htmlPrecios}
+                    <small style="color:#666; display:block; margin-top:4px;">Stock disponible: ${stockTotal} unid.</small>
+                </div>
+                ${htmlBoton}
+            </article>
+        `;
+    });
+    contenedor.innerHTML = html;
+}
+
 function cargarProductos() {
     let contenedor = document.querySelector(".grilla-productos");
     if (!contenedor) return;
@@ -1013,53 +1487,48 @@ function cargarProductos() {
     fetch('obtener_productos.php?categoria=' + encodeURIComponent(categoriaAttr))
         .then(respuesta => respuesta.json())
         .then(listaProductos => {
-            productosCargados = listaProductos;
-            if (listaProductos.length === 0) {
-                contenedor.innerHTML = "<p style='text-align:center; width:100%; font-size: 16px; grid-column: 1 / -1; padding: 30px;'>No hay productos disponibles en esta categoría.</p>";
-                return;
-            }
-
-            let html = "";
-            listaProductos.forEach(prod => {
-                let precioActual = parseFloat(prod.precio) || 0;
-                let precioViejo = parseFloat(prod.precio_anterior) || 0;
-                let stockTotal = prod.stock_total !== undefined ? Number(prod.stock_total) : 0;
-                let sinStock = stockTotal <= 0;
-
-                let htmlPrecios = "";
-                if (precioViejo > 0) {
-                    htmlPrecios = `
-                        <p class="precio-viejo">$${precioViejo.toLocaleString('es-AR')}</p>
-                        <p class="precio" style="color: #e53935;">$${precioActual.toLocaleString('es-AR')}</p>
-                    `;
-                } else {
-                    htmlPrecios = `
-                        <p class="precio">$${precioActual.toLocaleString('es-AR')}</p>
-                    `;
+            productosCargados = Array.isArray(listaProductos) ? listaProductos : [];
+            const inputBuscador = document.getElementById("buscador-productos");
+            if (inputBuscador && inputBuscador.value.trim() !== "") {
+                filtrarProductosPorNombre(inputBuscador.value);
+                mostrarSugerenciasBuscador(inputBuscador.value);
+            } else {
+                renderizarGrillaProductos(productosCargados, "");
+                const prodDestacado = new URLSearchParams(window.location.search).get("producto");
+                if (prodDestacado) {
+                    const card = contenedor.querySelector(`[data-producto-id="${prodDestacado}"]`);
+                    if (card) {
+                        card.scrollIntoView({ behavior: "smooth", block: "center" });
+                        card.style.transition = "box-shadow 0.3s ease, border-color 0.3s ease";
+                        card.style.borderColor = "#007bff";
+                        card.style.boxShadow = "0 0 0 3px rgba(0, 123, 255, 0.35)";
+                        setTimeout(() => {
+                            card.style.borderColor = "";
+                            card.style.boxShadow = "";
+                        }, 2600);
+                    }
                 }
-
-                let htmlBoton = sinStock
-                    ? `<button type="button" class="btn-carrito-add" disabled style="background: #999; cursor: not-allowed;">Sin stock</button>`
-                    : `<button type="button" class="btn-carrito-add" onclick="agregarAlCarrito(${prod.id})">🛒 Añadir al Carrito</button>`;
-
-                html += `
-                    <article class="producto">
-                        <div>
-                            <img src="${escaparHTML(prod.imagen)}" onerror="this.onerror=null;this.src='img/productos/placeholder.jpg';" alt="${escaparHTML(prod.nombre)}" onclick="window.location.href='producto.html?id=${prod.id}'">
-                            <h3 onclick="window.location.href='producto.html?id=${prod.id}'">${escaparHTML(prod.nombre)}</h3>
-                            ${htmlPrecios}
-                            <small style="color:#666; display:block; margin-top:4px;">Stock disponible: ${stockTotal} unid.</small>
-                        </div>
-                        ${htmlBoton}
-                    </article>
-                `;
-            });
-            contenedor.innerHTML = html;
+            }
         })
         .catch(error => {
             console.error(error);
             contenedor.innerHTML = "<p style='text-align:center; width:100%; grid-column: 1 / -1; color: red;'>Hubo un problema al cargar los productos.</p>";
         });
+
+    if (esPaginaPrincipal() && categoriaAttr !== "todos") {
+        fetch('obtener_productos.php?categoria=todos')
+            .then(r => r.json())
+            .then(todos => {
+                if (Array.isArray(todos)) {
+                    catalogoGlobal = todos;
+                    const inputBuscador = document.getElementById("buscador-productos");
+                    if (inputBuscador && inputBuscador.value.trim() !== "") {
+                        filtrarProductosPorNombre(inputBuscador.value);
+                    }
+                }
+            })
+            .catch(() => {});
+    }
 }
 
 function renderizarDetalleProducto() {
@@ -1188,7 +1657,8 @@ function asegurarCamposRegistroSeparados() {
         grupoApellido.className = "form-group-registro";
         grupoApellido.innerHTML = `
             <label for="reg-apellido">Apellido:</label>
-            <input type="text" id="reg-apellido" name="apellido" required placeholder="Ej: Pérez" pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s'\\-]+$" title="Solo letras, espacios, acentos y apóstrofes (')">
+            <input type="text" id="reg-apellido" name="apellido" required placeholder="Ej: Pérez" autocomplete="family-name">
+            <small id="error-reg-apellido" class="error-campo-registro"></small>
         `;
         grupoNombre.insertAdjacentElement("afterend", grupoApellido);
     }
@@ -1197,6 +1667,8 @@ function asegurarCamposRegistroSeparados() {
 document.addEventListener("DOMContentLoaded", () => {
     aplicarTemaGuardado();
     asegurarCamposRegistroSeparados();
+    inicializarValidacionRegistro();
+    inicializarBuscadorProductos();
     if (document.querySelector(".carrusel-slide") || document.querySelector(".slide")) inicializarCarrusel();
     verificarEstadoSesionUI();
     cargarCarritoUsuario();

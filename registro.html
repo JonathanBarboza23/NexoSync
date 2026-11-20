@@ -9,7 +9,7 @@
     <title>ElectroHogar - Crear Cuenta</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="img/icono-electrohogar.png">
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=16">
     <style>
         .seccion-registro { display: flex; justify-content: center; align-items: center; min-height: 75vh; padding: 20px; }
         .caja-registro { background: #fff; border: 2px solid #000; border-radius: 8px; padding: 40px; width: 100%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
@@ -19,6 +19,7 @@
         .form-group-registro label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 13px; color: #333; }
         .form-group-registro input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 15px; transition: border-color 0.2s; }
         .form-group-registro input:focus { border-color: #000; outline: none; }
+        .error-campo-registro { display: none; color: #dc3545; font-size: 12.5px; margin-top: 5px; font-weight: 600; line-height: 1.35; }
         .btn-registro { width: 100%; background: #000; color: #fff; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-top: 10px; transition: background 0.2s; }
         .btn-registro:hover { background: #333; }
         .pie-registro { text-align: center; margin-top: 20px; font-size: 14px; color: #555; border-top: 1px solid #eee; padding-top: 15px; }
@@ -61,30 +62,35 @@
                 <h2>📝 Crear Cuenta</h2>
                 <p class="subtitulo">Únete a ElectroHogar para guardar tu carrito y agilizar tus compras.</p>
 
-                <form onsubmit="procesarRegistro(event)">
+                <form onsubmit="procesarRegistro(event)" novalidate>
                     <div class="form-group-registro">
                         <label for="reg-nombre">Nombre:</label>
-                        <input type="text" id="reg-nombre" name="nombre" required placeholder="Ej: Juan" required pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\'-]+$" oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\'-]/g, '')" title="Solo letras, espacios, acentos y apóstrofes (')">
+                        <input type="text" id="reg-nombre" name="nombre" required placeholder="Ej: Juan" autocomplete="given-name">
+                        <small id="error-reg-nombre" class="error-campo-registro"></small>
                     </div>
 
                     <div class="form-group-registro">
                         <label for="reg-apellido">Apellido:</label>
-                        <input type="text" id="reg-apellido" name="apellido" required placeholder="Ej: Pérez" required pattern="^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\'-]+$" oninput="this.value = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s\'-]/g, '')" title="Solo letras, espacios, acentos y apóstrofes (')">
+                        <input type="text" id="reg-apellido" name="apellido" required placeholder="Ej: Pérez" autocomplete="family-name">
+                        <small id="error-reg-apellido" class="error-campo-registro"></small>
                     </div>
 
                     <div class="form-group-registro">
                         <label for="reg-dni">DNI (sin puntos ni espacios):</label>
-                        <input type="text" id="reg-dni" name="dni" required placeholder="Ej: 38123456" pattern="\d{6,11}" maxlength="11" oninput="this.value=this.value.replace(/\D/g,'')" title="Ingresa entre 6 y 11 números">
+                        <input type="text" id="reg-dni" name="dni" required placeholder="Ej: 38123456" maxlength="11" inputmode="numeric">
+                        <small id="error-reg-dni" class="error-campo-registro"></small>
                     </div>
 
                     <div class="form-group-registro">
                         <label for="reg-email">Correo Electrónico:</label>
-                        <input type="email" id="reg-email" name="email" required placeholder="tu@correo.com">
+                        <input type="email" id="reg-email" name="email" required placeholder="tu@correo.com" autocomplete="email">
+                        <small id="error-reg-email" class="error-campo-registro"></small>
                     </div>
 
                     <div class="form-group-registro">
                         <label for="reg-password">Contraseña:</label>
-                        <input type="password" id="reg-password" name="password" required placeholder="Mínimo 6 caracteres" minlength="6">
+                        <input type="password" id="reg-password" name="password" required placeholder="Mínimo 4 caracteres" minlength="4" autocomplete="new-password">
+                        <small id="error-reg-password" class="error-campo-registro"></small>
                     </div>
 
                     <button type="submit" id="btn-submit-registro" class="btn-registro">Registrarme</button>
@@ -99,6 +105,6 @@
     <footer>
         <p>Todos los derechos reservados - Copyright 2026 ElectroHogar S.A.</p>
     </footer>
-    <script src="script.js?v=16"></script>
+    <script src="script.js?v=17"></script>
 </body>
 </html>
